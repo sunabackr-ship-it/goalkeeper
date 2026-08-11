@@ -207,22 +207,21 @@ function allZones(){ var a=[]; for(var i=0;i<ZONES;i++) a.push(i); return a; }
 function shuffle(a){ var x=a.slice(); for(var i=x.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=x[i]; x[i]=x[j]; x[j]=t; } return x; }
 // まと（候補ゾーン）を選ぶ。近すぎると見分けがつかないので、
 // 左右にしっかり離れた組み合わせを優先する。
-function pickCandidates(t, extra){
-  if(extra<=0) return [t];
-  var chosen=[t], pool=shuffle(allZones()).filter(function(z){ return z!==t; }), i, j;
-  function ok(z, minD, minCol){
-    for(j=0;j<chosen.length;j++){
-      if(cellDist(z,chosen[j])<minD) return false;
-      if(Math.abs(cr(z).c-cr(chosen[j]).c)<minCol) return false;
-    }
-    return true;
+// t=本命。まわりのマスを光らせる。rank2（超一流）は逆サイドも1つ光る。
+function pickCandidates(t, extra, rank){
+  var want=1+Math.max(0,extra);
+  if(want<=1) return [t];
+  var out=[t];
+  if(rank===2){ var o=oppositeZone(t); if(o!==t) out.push(o); }
+  var adj=shuffle(adjacentZones(t));
+  for(var i=0;i<adj.length && out.length<want;i++)
+    if(out.indexOf(adj[i])<0) out.push(adj[i]);
+  if(out.length<want){   // 足りなければ斜めから補う
+    var diag=shuffle(allZones()).filter(function(z){ var d=cellDist(z,t); return d>1 && d<1.5; });
+    for(var j=0;j<diag.length && out.length<want;j++)
+      if(out.indexOf(diag[j])<0) out.push(diag[j]);
   }
-  // ①左右2列以上かつ距離2.2以上 → ②左右2列以上 → ③左右1列以上 → ④残りから
-  var rules=[[2.2,2],[1.8,2],[1.4,1],[0,0]];
-  for(var r=0;r<rules.length && chosen.length<1+extra;r++)
-    for(i=0;i<pool.length && chosen.length<1+extra;i++)
-      if(chosen.indexOf(pool[i])<0 && ok(pool[i],rules[r][0],rules[r][1])) chosen.push(pool[i]);
-  return chosen;
+  return out.slice(0,want);
 }
 function glowAlpha(z, gz, progress, react){
   var start=(1-react/100)*0.5+0.14, conf=Math.max(0,Math.min(1,(progress-start)/(1-start)));
@@ -240,20 +239,21 @@ function posPenalty(zone, gk){
       0.45*side*(1-gk.反応/100*0.5)
     + 0.50*high*(1-gk.反応/100*0.55));
 }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
 // セーブ判定（GK能力 × キッカー能力）。saved=true ならGKの勝ち
 function resolveSave(target, committed, gk, kicker, candidates, oppGK){
-  if(committed==null) return { saved:false, reason:"跳べなかった…", stat:"メンタル", power:false, hold:false };
+  if(committed==null) return { saved:false, reason:"動けなかった…　見送るしかない…", stat:"メンタル", power:false, hold:false };
   var d=cellDist(target, committed), topRow=cr(target).r===0;
   var reachCells=0.90+(gk.反応/100)*1.19, pReach=(reachCells-d)/reachCells;
   var wrongCand = committed!==target && candidates && candidates.indexOf(committed)>=0;
   if(pReach<=0){
-    if(wrongCand) return { saved:false, reason:"別の狙いに釣られた…", stat:"フェイント力", power:false, hold:false };
-    return { saved:false, reason: d>=2.5?"逆を突かれた！":"そこまで届かなかった…", stat:"反応", power:false, hold:false };
+    if(wrongCand) return { saved:false, reason: pick(["完全に釣られた…","フェイントに飛ばされた…"]), stat:"フェイント力", power:false, hold:false };
+    return { saved:false, reason: d>=2.5? pick(["完全に逆を突かれた！","真逆に跳んでしまった…"]) : pick(["跳んだが、まるで届かない…","距離がありすぎた…"]), stat:"反応", power:false, hold:false };
   }
   pReach=Math.min(1,pReach)*(1-posPenalty(target,gk));
   if(pReach<=0){
-    if(wrongCand) return { saved:false, reason:"別の狙いに釣られた…", stat:"フェイント力", power:false, hold:false };
-    return { saved:false, reason:"コースが遠すぎた…", stat:"反応", power:false, hold:false };
+    if(wrongCand) return { saved:false, reason: pick(["完全に釣られた…","フェイントに飛ばされた…"]), stat:"フェイント力", power:false, hold:false };
+    return { saved:false, reason: pick(["コースが遠すぎた…","逆サイドを射抜かれた…"]), stat:"反応", power:false, hold:false };
   }
   // 上限を先に適用してから押し込みを引く（順序を逆にするとキック力が吸収され無効化する）
   var chance=Math.min(96, (0.42+(gk.フィジカル/100)*1.18)*pReach*100);
@@ -261,10 +261,35 @@ function resolveSave(target, committed, gk, kicker, candidates, oppGK){
   chance=Math.max(0, chance-push);
   if(oppGK) chance=Math.min(96, chance*LV().saveMul);   // 難易度：相手GKのときだけ効く
   var saved=Math.random()*100<chance, near=d<0.5;
-  if(saved) return { saved:true, reason: near?"読み切ってキャッチ！":"手を伸ばして弾いた！", stat: near?"フィジカル":"反応", power:false, hold:near };
-  if(near) return { saved:false, reason:"読み勝ったが押し込まれた…", stat:"キック力", power:true, hold:false };
-  if(wrongCand) return { saved:false, reason:"別の狙いに釣られた…", stat:"フェイント力", power:false, hold:false };
-  return { saved:false, reason:"あと一歩、届かず…", stat:"反応", power:false, hold:false };
+  if(saved){
+    var win;
+    if(near) win = pick(["見事、読み切った！","完全に読んでいた！　真正面でキャッチ！","狙いを見破った！　がっちり抱え込む！"]);
+    else {
+      var A=cr(target), B=cr(committed);
+      var dc=A.c-B.c, dr=A.r-B.r;      // 跳んだ位置から見たボールの方向
+      var dived=(B.c===0||B.c===3);    // 端に跳んだ＝すでに倒れ込んでいる
+      if(dc!==0 && dr!==0){
+        win = pick(["体を投げ出して、なんとか触った！","逆をつかれながら、伸ばした手がかすった！"]);
+      } else if(dr<0){                 // ボールが上
+        win = dived ? pick(["倒れながら、腕を上へ伸ばした！","跳んだ勢いのまま、上へ手を伸ばした！"])
+                    : pick(["伸び上がって指先でかき出した！","とっさに腕を上へ伸ばした！"]);
+      } else if(dr>0){                 // ボールが下
+        win = dived ? pick(["倒れ込んだまま、足でかき出した！","体勢を崩しながら、足先に当てた！"])
+                    : pick(["足を伸ばして、下ではじいた！","低い姿勢から足を出した！"]);
+      } else {                         // 真横
+        win = dived ? pick(["倒れ込みながら、腕だけを伸ばした！","地面すれすれで、指先が届いた！"])
+                    : pick(["ぎりぎり手を伸ばして弾いた！","横っ跳びで片手ではじき出した！"]);
+      }
+    }
+    return { saved:true, reason:win, stat: near?"フィジカル":"反応", power:false, hold:near };
+  }
+  if(near) return { saved:false, reason: pick(["読み勝ったが、力でねじ込まれた…","コースは読んだ！　だが弾き切れない…","触った！　しかし押し込まれた…"]), stat:"キック力", power:true, hold:false };
+  if(wrongCand) return { saved:false, reason: pick(["完全に釣られた…","フェイントに飛ばされた…","逆を突かれた…"]), stat:"フェイント力", power:false, hold:false };
+  var A2=cr(target), B2=cr(committed), dr2=A2.r-B2.r;
+  var miss = (dr2<0) ? pick(["伸び上がったが、上を抜かれた…","指先が、わずかに届かない…"])
+           : (dr2>0) ? pick(["足を伸ばしたが、下を抜かれた…","一歩、間に合わなかった…"])
+                     : pick(["あと一歩、指先がかすめただけ…","懸命に伸ばしたが、届かない…"]);
+  return { saved:false, reason:miss, stat:"反応", power:false, hold:false };
 }
 // 攻撃時：相手GKがあなたのコースをどこと読むか
 function neighborZone(z){ var n=allZones().filter(function(i){ var d=cellDist(i,z); return d>0&&d<1.5; }); return n[Math.floor(Math.random()*n.length)]; }
@@ -278,11 +303,34 @@ function keeperGuess(shot, gk, kicker){
 function edgeFactor(zone){ var p=cr(zone); var colN=Math.abs(p.c-1.5)/1.5, rowN=(p.r===0)?1.42:((p.r===1)?0:1.00); return Math.min(1,(colN+rowN)/2*1.25); }
 function missWide(kicker, zone){ var acc=kicker.正確性!=null?kicker.正確性:60; return Math.random() < edgeFactor(zone)*(1-acc/100)*0.70; }
 // シュートの候補数(=1+extra)。フェイント力で分かれ、メンタルの高いGKだけ1つ絞れる（分けるキッカーには最低2択残す）
-function candidateExtra(kicker, gk){
-  var extra=Math.floor(kicker.フェイント力/33);          // フェイント力90+→2(3手), 33-65→1(2手), それ未満→0(1手)
-  if(extra>=1 && gk.メンタル>=85) extra=Math.max(1, extra-1); // 高メンタルGKは1つ絞る。ただし2択は残る
-  return extra;
+/* 光るマス（まと）の作り方
+   フェイント力のランクで「光る数」が決まり、GKの読みでそれを絞れる。
+     一般(〜59)   本命＋となり2マス = 3   → 読みが高ければ2
+     一流(60〜84) 本命＋となり4マス = 5   → 3、さらに高ければ2
+     超一流(85〜) 上に逆サイド1マスを足す = 6 → 4、さらに高ければ3
+   となりのマスに散らすので、外して跳んでも「反応」で届く余地が残る。 */
+function feintRank(kicker){ var f=kicker.フェイント力; return f>=85?2:(f>=60?1:0); }
+function adjacentZones(z){
+  var p=cr(z), out=[];
+  [[0,-1],[0,1],[-1,0],[1,0]].forEach(function(d){
+    var c=p.c+d[0], r=p.r+d[1];
+    if(c>=0&&c<COLS&&r>=0&&r<ROWS) out.push(r*COLS+c);
+  });
+  return out;
 }
+function oppositeZone(z){ var p=cr(z); return (ROWS-1-p.r)*COLS + (COLS-1-p.c); }
+function markCount(kicker, gk){
+  var rank=feintRank(kicker), want=[3,5,6][rank], floorN=[2,2,3][rank];
+  // 難易度で「絞りやすさ」を変える。イージーは低い読みでも絞れる／ハードは高い読みが要る
+  var adj=(LV().candAdj||0)*10;                 // easy:-10 normal:0 hard:+10
+  var read=gk.メンタル;
+  if(read>=85+adj) want=floorN;
+  else if(read>=70+adj) want=Math.max(floorN, want-2);
+  if(LV().key==="hard") want=want+1;            // ハードは1つ多い
+  if(LV().key==="easy") want=want-1;            // イージーは1つ少ない
+  return Math.max(LV().key==="easy"?1:2, want);  // ノーマル以上は最低2つ光る
+}
+function candidateExtra(kicker, gk){ return markCount(kicker,gk)-1; }
 
 // 人型キーパー（24×24ドット絵。ユニフォームはチームのGK色）
 function keeperSVG(color){
@@ -415,6 +463,7 @@ function renderTitle(){
   var note=h("div","margin:20px auto 0;max-width:340px;text-align:center;color:#dfe9e1;font-size:10px;line-height:1.7;background:rgba(4,18,10,0.45);border-radius:10px;padding:8px 10px");
   note.appendChild(h("div",null,"小学校の自由研究として作った、非営利のゲームです。"));
   note.appendChild(h("div",null,"選手のイラストは本人ではなく、イメージとして描いたものです。"));
+  note.appendChild(h("div",null,"「架空」と表示される選手は、実在しない自動生成のキャラクターです。"));
   note.appendChild(h("div",null,"能力値は制作者が独自につけたもので、公式の評価ではありません。"));
   app.appendChild(note);
 }
@@ -448,6 +497,18 @@ function miniBar(label,v,color){
   w.appendChild(h("span","font-size:10px;color:"+C.sub+";width:46px",label));
   var t=h("div","flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:4px");
   t.appendChild(h("div","width:"+v+"%;height:100%;background:"+color+";border-radius:4px")); w.appendChild(t); return w;
+}
+// 名簿に顔画像がある＝調べた実在選手。ない＝自動生成の架空選手。
+function isFictional(m){ return m && m.name && m.name!=="—" && !FACES[m.name]; }
+function fictionBadge(size){
+  var fs=(size||10);
+  return h("span","display:inline-block;font-size:"+fs+"px;font-weight:700;color:"+C.sub
+    +";border:1px solid "+C.sub+";border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle","架空");
+}
+function nameWithBadge(m, style, badgeSize){
+  var w=h("span",style||""); w.appendChild(document.createTextNode(m.name));
+  if(isFictional(m)) w.appendChild(fictionBadge(badgeSize));
+  return w;
 }
 function faceImg(name){ return '<img src="'+FACES[name]+'" alt="" style="width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges">'; }
 function avatarBox(name,color,size){ var d=h("div","width:"+size+"px;height:"+size+"px;flex:0 0 auto");
@@ -542,7 +603,7 @@ function tuDefend(split){
   st.appendChild(bigButton("受けて立つ","#4bc0e8",function(){
     st.innerHTML=""; st.appendChild(h("p","text-align:center;color:"+C.ball+";font-weight:800;font-size:16px;margin-top:14px","→ 本命だと思うマスをタップ！"));
     var t=Math.floor(Math.random()*ZONES);
-    var cands=pickCandidates(t, split?1:0);
+    var cands=pickCandidates(t, split?2:1, split?1:0);
     var committed=null;
     ui.cells.forEach(function(c){ c.style.cursor="pointer"; });
     ui.onCell=function(z){ if(committed!=null) return; committed=z;
@@ -569,12 +630,12 @@ function tuDefend(split){
           // 跳んだ先とボールの距離で文言を変える（となりでも反応が届けば止まる）
           var dist=(committed==null)?99:cellDist(t,committed);
           var how = res.saved
-            ? (dist<0.5 ? "ズバリ当てた！"
-                        : (dist<1.5 ? "となりだったが、反応がひろいので手がとどいた！"
-                                    : "はなれていたのに、反応でとどいた！"))
-            : (dist<0.5 ? "コースは当てたのに、キック力で押し込まれた…"
-                        : (dist<1.5 ? "おしい。となりだったが、とどかなかった…"
-                                    : "はなれすぎて、とどかなかった…"));
+            ? (dist<0.5 ? "見事、読み切った！"
+                        : (dist<1.5 ? "となりだったが、手を伸ばして弾いた！"
+                                    : "はなれていたのに、体を投げ出して届いた！"))
+            : (dist<0.5 ? "コースは読み切った！　だが力でねじ込まれた…"
+                        : (dist<1.5 ? "あと一歩、指先がかすめただけ…"
+                                    : "はなれすぎて、手も足も出なかった…"));
           if(split) tuResult(res.saved?"セーブ！":"きめられた…",
               res.saved? how : "2つに散ると当てるのは難しい。それでいい。",
               res.saved?C.save:C.goal, tuDone,"おわり ›");
@@ -767,7 +828,7 @@ function renderPickGK(cfg){
     var card=h("button","text-align:left;background:rgba(255,255,255,0.04);border:1.5px solid "+gk.color+";border-radius:14px;padding:12px;color:"+C.ink+";cursor:pointer;touch-action:manipulation;width:100%");
     var top=h("div","display:flex;align-items:center;gap:10px;margin-bottom:8px");
     top.appendChild(avatarBox(gk.name, gk.color, 40));
-    var nm=h("div"); nm.appendChild(h("div","font-size:17px;font-weight:800;color:"+gk.color,gk.name));
+    var nm=h("div"); nm.appendChild(nameWithBadge(gk,"font-size:17px;font-weight:800;color:"+gk.color+";display:block",9));
     nm.appendChild(h("div","font-size:12px;color:"+C.gold+";letter-spacing:1px",stars(gk.star))); top.appendChild(nm);
     card.appendChild(top); card.appendChild(statBars(gk, gk.color));
     card.addEventListener("click", function(){ cfg.onPick(gk); });
@@ -782,7 +843,7 @@ function renderPickKickersMode(cfg){
   var ind=h("button","width:100%;text-align:center;background:rgba(255,255,255,0.06);border:1px dashed rgba(255,255,255,0.25);color:"+C.ink+";font-size:13px;font-weight:700;padding:12px;border-radius:12px;cursor:pointer;margin-top:12px;touch-action:manipulation","自分で5人選ぶ ›");
   ind.addEventListener("click", function(){ renderPickKickers({ title:cfg.title, sub:"蹴る順に5人", back:cfg.back, onDone:cfg.onDone }); });
   app.appendChild(ind);
-  app.appendChild(h("p","color:"+C.sub+";font-size:12px;margin-top:14px;line-height:1.6","おまかせは、強い選手も力の弱い選手もランダムに混ざります。"));
+  app.appendChild(h("p","color:"+C.sub+";font-size:12px;margin-top:14px;line-height:1.6","おまかせは、強い選手も力の弱い選手もランダムに混ざります。「架空」は自動生成の選手です。"));
 }
 function renderPickKickers(cfg){
   var chosen=[];
@@ -797,7 +858,7 @@ function renderPickKickers(cfg){
       var top=h("div","display:flex;align-items:center;gap:8px;margin-bottom:6px");
       top.appendChild(avatarBox(k.name,k.color,30));
       var nm=h("div","min-width:0");
-      nm.appendChild(h("div","font-size:13px;font-weight:700;color:"+C.ink+";overflow:hidden;text-overflow:ellipsis;white-space:nowrap",k.name));
+      nm.appendChild(nameWithBadge(k,"font-size:13px;font-weight:700;color:"+C.ink+";display:block;white-space:nowrap",8));
       nm.appendChild(h("div","font-size:10px;color:"+C.gold,stars(k.star))); top.appendChild(nm);
       card.appendChild(top);
       card.appendChild(kickerBars(k));
@@ -817,7 +878,7 @@ function renderPickOpp(cfg){
   app.appendChild(bigButton("おまかせ（ランダム編成）", "#4bc0e8", cfg.onRandom));
   var ind=h("button","width:100%;text-align:center;background:rgba(255,255,255,0.06);border:1px dashed rgba(255,255,255,0.25);color:"+C.ink+";font-size:13px;font-weight:700;padding:12px;border-radius:12px;cursor:pointer;margin-top:12px;touch-action:manipulation","個別に選ぶ ›");
   ind.addEventListener("click", cfg.individual); app.appendChild(ind);
-  app.appendChild(h("p","color:"+C.sub+";font-size:12px;margin-top:14px;line-height:1.6","おまかせは、強い選手も力の弱い選手も混ざってランダムに出ます。"));
+  app.appendChild(h("p","color:"+C.sub+";font-size:12px;margin-top:14px;line-height:1.6","おまかせは、強い選手も力の弱い選手も混ざってランダムに出ます。「架空」は自動生成の選手です。"));
 }
 
 /* ---------- 対戦カード ---------- */
@@ -849,7 +910,7 @@ function teamCell(role,m){
   c.appendChild(avatarBox(m.name,m.color,44));
   c.firstChild.setAttribute("style","width:44px;height:44px;margin:0 auto");
   c.appendChild(h("div","font-size:9px;color:"+C.sub+";margin-top:2px",role));
-  c.appendChild(h("div","font-size:12px;font-weight:700;color:"+C.ink+";overflow:hidden;text-overflow:ellipsis;white-space:nowrap",m.name));
+  c.appendChild(nameWithBadge(m,"font-size:12px;font-weight:700;color:"+C.ink+";display:block;white-space:nowrap",8));
   c.appendChild(h("div","font-size:11px;color:"+C.gold,stars(m.star)));
   return c;
 }
@@ -934,7 +995,11 @@ function diveKeeper(z){
   var gr=ui.grid.getBoundingClientRect(), c=ui.cells[z].getBoundingClientRect();
   var tx=c.left+c.width/2-gr.left, ty=c.top+c.height/2-gr.top;
   var restX=ui.keeper._restX!=null?ui.keeper._restX:gr.width/2;
-  var angle=Math.max(-80,Math.min(80,(tx-restX)/gr.width*160));
+  // 横に跳ぶほど倒れ、上段はあまり倒れず（伸び上がる）、下段は深く倒れる
+  var side=(tx-restX)/gr.width;                 // -0.5〜0.5
+  var row=cr(z).r;                              // 0=上 1=中 2=下
+  var lean=(row===0)?0.55:(row===1?1.0:1.25);
+  var angle=Math.max(-85,Math.min(85, side*160*lean));
   ui.keeper.style.transition="transform 240ms cubic-bezier(.25,.8,.35,1)";
   ui.keeper.style.transform="translate(-50%,-50%) translate("+tx+"px,"+ty+"px) rotate("+angle+"deg)";
   ui.keeperInner.style.transition="transform 240ms ease-out"; ui.keeperInner.style.transform="scale(1.15)";
@@ -1058,7 +1123,7 @@ function playerIntro(m, roleLabel, tags, extraEls, accent, onGo){
   wrap.appendChild(scoreboard()); wrap.appendChild(marksBar());
   wrap.appendChild(h("div","color:"+C.sub+";font-size:12px;letter-spacing:3px;margin:6px 0 2px", roleLabel));
   var av=h("div","width:128px;height:128px;margin:6px auto 6px"); av.innerHTML = FACES[m.name] ? faceImg(m.name) : avatarSVG(m.name,m.color); wrap.appendChild(av);
-  wrap.appendChild(h("div","font-size:21px;font-weight:900;color:"+C.ink,m.name));
+  wrap.appendChild(nameWithBadge(m,"font-size:21px;font-weight:900;color:"+C.ink+";display:block",11));
   wrap.appendChild(h("div","font-size:15px;color:"+C.gold+";letter-spacing:2px;margin-top:2px",stars(m.star)));
   var tg=h("div","display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0");
   tags.forEach(function(t){ tg.appendChild(h("span","font-size:12px;font-weight:700;color:"+accent+";border:1px solid "+accent+";border-radius:999px;padding:4px 12px",t)); });
@@ -1079,7 +1144,7 @@ function renderAttack(){
   app.appendChild(h("div","text-align:center;font-size:15px;font-weight:800;color:"+S.youTeam.color+";margin:2px 0 2px","▶ あなたのキック（"+S.round+"人目）"));
   var info=h("div","display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2px");
   info.appendChild(avatarBox(you.name, you.color, 26));
-  info.appendChild(h("span","font-size:13px;font-weight:700;color:"+C.ink,you.name));
+  info.appendChild(nameWithBadge(you,"font-size:13px;font-weight:700;color:"+C.ink,9));
   info.appendChild(h("span","font-size:11px;color:"+C.gold,stars(you.star)));
   app.appendChild(info);
   app.appendChild(h("div","text-align:center;font-size:11px;color:"+C.sub+";margin-bottom:2px","相手GK "+opp.name+"（反応"+opp.反応+"／メンタル"+opp.メンタル+"）"));
@@ -1123,18 +1188,18 @@ function shootAt(z){
 }
 // ゴール時の一言は「GKが実際にどこへ跳んだか」から決める（固定文だと嘘になる）
 function attackReason(){
-  if(S.guess==null) return "相手GKは跳べなかった！";
+  if(S.guess==null) return "相手GKは動けなかった！";
   var d=cellDist(S.shot, S.guess);
-  if(d<0.5)  return "コースは読まれていた…キック力で押し込んだ！";
-  if(d<1.5)  return "相手GKの手が、あと一歩届かなかった！";
-  if(d<2.5)  return "相手GKは別のコースを読んでいた！";
-  return "相手GKの逆を突いた！";
+  if(d<0.5)  return pick(["読まれていた！　だが力でねじ込んだ！","コースは読まれた！　それでも押し込んだ！"]);
+  if(d<1.5)  return pick(["相手GKの指先が、わずかに届かない！","懸命に伸ばした手をかすめた！"]);
+  if(d<2.5)  return pick(["相手GKは別のコースを読んでいた！","狙いを外させた！"]);
+  return pick(["完全に逆を突いた！","相手GKは真逆へ跳んだ！"]);
 }
 function attackResult(){
   var s=ui.status; s.innerHTML=""; var goal=S.ao.goal, wide=S.ao.wide;
   var big = goal?"ゴール！！":(wide?"枠外…":"とめられた…");
   var col = goal?C.ball:(wide?C.sub:C.save);
-  var sub = goal?attackReason():(wide?"コースを狙いすぎて外した…":("相手GK："+S.ao.res.reason));
+  var sub = goal?attackReason():(wide?pick(["ねらいすぎた…　枠の外へ…","力んだ…　大きく外れた…"]):("相手GK："+S.ao.res.reason));
   s.appendChild(h("div","text-align:center;font-size:30px;font-weight:900;color:"+col, big));
   s.appendChild(h("div","text-align:center;color:"+C.sub+";font-size:12px;margin:2px 0 10px", sub));
   if(S.mode==="kick") s.appendChild(bigButton("次へ", S.youTeam.color, endRound));
@@ -1157,7 +1222,7 @@ function renderDefend(){
   // 相手キッカー情報
   var info=h("div","display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2px");
   info.appendChild(avatarBox(kicker.name, kicker.color, 26));
-  info.appendChild(h("span","font-size:13px;font-weight:700;color:"+C.ink,kicker.name));
+  info.appendChild(nameWithBadge(kicker,"font-size:13px;font-weight:700;color:"+C.ink,9));
   info.appendChild(h("span","font-size:11px;color:"+C.gold,stars(kicker.star)));
   app.appendChild(info);
   var pitch=buildPitch(gk.color); app.appendChild(pitch);
@@ -1216,8 +1281,8 @@ function startKick(){
   if(S.phase!=="ready") return;
   var gk=S.youTeam.gk, kicker=oppKicker();
   var t=Math.floor(Math.random()*ZONES);
-  var extra=Math.max(0, candidateExtra(kicker, gk)+LV().candAdj);
-  var cands=pickCandidates(t, extra); S.dtarget=t; S.candidates=cands;
+  var extra=candidateExtra(kicker, gk);
+  var cands=pickCandidates(t, extra, feintRank(kicker)); S.dtarget=t; S.candidates=cands;
   S.committed=null; S.dout=null; S.progress=0; S.lockShown=false; S.lateWarned=false; S.phase="runup";
   if(ui.frame) ui.frame.style.borderColor=C.line;
   setMeter(0);
@@ -1253,7 +1318,7 @@ function defendStrike(t){
   S.phase="strike"; defendStatus(); ui.runner.style.opacity="0";
   if(missWide(oppKicker(), t)){
     diveKeeper(S.committed!=null ? S.committed : t);   // 枠外でもキーパーは跳ぶ
-    S.dout={ saved:true, wide:true, reason:"相手が枠を外した！", stat:"正確性", hold:false, power:false };
+    S.dout={ saved:true, wide:true, reason: pick(["相手が枠を外した！　助かった！","大きく外れた！　命拾いだ！"]), stat:"正確性", hold:false, power:false };
     S.phase="resolved"; S.saves++; S.oppMarks.push(false); crowds(true);
     flyBallWide(t, function(){ ui.ballInner.style.animation="none"; defendStatus(); });
     return;
