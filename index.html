@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>PK戦</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(120% 80% at 50% -10%, #17482d 0%, #06170e 60%);
+    color: #f2f7f3;
+    font-family: 'Hiragino Kaku Gothic ProN','Yu Gothic','Trebuchet MS',system-ui,sans-serif;
+    display: flex; justify-content: center;
+  }
+  #app { width: 100%; max-width: 430px; padding: 20px 18px 40px; }
+  button { font-family: inherit; }
+  h1 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: 1px; }
+  @keyframes gkDive { from { transform: scale(0.3); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  @keyframes gkSpin { to { transform: rotate(360deg) } }
+  @keyframes gkShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-4px)} 40%{transform:translateX(4px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(2px)} }
+  @keyframes gkIn { from { opacity:0; transform: translateY(12px) scale(.96) } to { opacity:1; transform:none } }
+  @keyframes gkFlash { from { transform:scale(.7); opacity:.9 } to { transform:scale(1.7); opacity:0 } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* =========================================================================
+   ▼▼▼ 選手データ（実在選手を調べて差し替える／数値は主観・自由に調整）▼▼▼
+   プール制：GK名簿(REAL_GKS)とキッカー名簿(REAL_KICKERS)から自由に編成。
+   star … 総合評価(1〜5)  color … 顔・ユニフォームの色
+   ＜GK＞ 反応=読みの速さ / 守備範囲=届く広さ / ハイボール=上への強さ / メンタル=決定力・だまし耐性
+   ＜キッカー＞ だまし=フォームでウソをつく力 / キック力=押し込む力
+   note … 経歴・実績などの「事実」を書く欄（能力値と分けて研究の誠実さを保つ）
+   ※数値は直人メモ＋一般的な評判からの仮置き。実物を調べて自由に直してOK。
+   ※モブ（雑魚）はこの下で自動生成してランダムに混ぜている。
+   ========================================================================= */
+var REAL_GKS = [
+  { name:"エミリアーノ・マルティネス", color:"#79b7e0", star:5, note:"アルゼンチン代表。PKの読みと駆け引きに定評。", 反応:92, 守備範囲:82, ハイボール:80, メンタル:96 },
+  { name:"鈴木ザイオン", color:"#2a5ca8", star:4, note:"日本代表。長身で安定感、押し込まれにくい強いメンタル。", 反応:82, 守備範囲:86, ハイボール:82, メンタル:88 },
+  { name:"ウナイ・シモン", color:"#d94a4a", star:5, note:"スペイン代表。全体的に世界トップクラスのバランス型。", 反応:88, 守備範囲:88, ハイボール:85, メンタル:86 },
+  { name:"ヴォジーニャ", color:"#2a8a6b", star:4, note:"カーボベルデ代表。ベテラン。反応は年齢なりだが読みとメンタルが激強。", 反応:68, 守備範囲:78, ハイボール:80, メンタル:96 },
+  { name:"ジョーダン・ピックフォード", color:"#3b4a6b", star:4, note:"イングランド代表(エヴァートン)。反応の速いシュートストッパー。ハイボールは苦手、近年メンタル安定。", 反応:90, 守備範囲:74, ハイボール:62, メンタル:80 },
+  { name:"門川直人", color:"#ffcc33", star:5, note:"あなた（直人）。数値は自由に調整しよう！", 反応:85, 守備範囲:85, ハイボール:85, メンタル:90 },
+];
+var REAL_KICKERS = [
+  { name:"メッシ", color:"#79b7e0", star:5, note:"アルゼンチン代表。史上最高クラスの技術。", だまし:95, キック力:68 },
+  { name:"エムバペ", color:"#2a4b9b", star:5, note:"フランス代表。スピードと決定力。", だまし:78, キック力:88 },
+  { name:"クリスティアーノ・ロナウド", color:"#b23b3b", star:5, note:"ポルトガル代表。強烈なシュート。", だまし:60, キック力:96 },
+  { name:"ネイマール", color:"#f2d23f", star:5, note:"ブラジル代表。トリッキー。", だまし:92, キック力:70 },
+  { name:"ラミン・ヤマル", color:"#d94a4a", star:5, note:"スペイン代表。若き天才。", だまし:88, キック力:66 },
+  { name:"ルカ・モドリッチ", color:"#c8443c", star:4, note:"クロアチア代表。正確な技術。", だまし:75, キック力:72 },
+  { name:"ハーランド", color:"#2a5c8a", star:5, note:"ノルウェー代表。怪物ストライカー。", だまし:45, キック力:97 },
+  { name:"上田綺世", color:"#2a5ca8", star:3, note:"日本代表FW。", だまし:42, キック力:74 },
+  { name:"久保建英", color:"#2a5ca8", star:4, note:"日本代表。技巧派。", だまし:80, キック力:60 },
+  { name:"ベリンガム", color:"#3b4a6b", star:5, note:"イングランド代表。", だまし:62, キック力:82 },
+  { name:"ソン・フンミン", color:"#d33b3b", star:5, note:"韓国代表。両足の強烈シュート。", だまし:68, キック力:88 },
+  { name:"シドニー・ロペス・カブラル", color:"#2a8a6b", star:4, note:"カーボベルデ代表。最優秀ゴール受賞（直人メモ）。", だまし:70, キック力:80 },
+  { name:"ハリー・ケイン", color:"#3b4a6b", star:5, note:"イングランド代表。決定力の塊。", だまし:55, キック力:92 },
+  { name:"デンベレ", color:"#2a4b9b", star:4, note:"フランス代表。スピードとトリック。", だまし:82, キック力:72 },
+  { name:"コディ・ガクポ", color:"#e08a2a", star:4, note:"オランダ代表。", だまし:66, キック力:82 },
+  { name:"エンソ・フェルナンデス", color:"#79b7e0", star:4, note:"アルゼンチン代表。両耳ポーズ(リケルメ)で有名（直人メモ）。", だまし:72, キック力:78 },
+  { name:"ロメル・ルカク", color:"#d4b23a", star:4, note:"ベルギー代表。パワー型。", だまし:42, キック力:92 },
+  { name:"ヴィニシウス", color:"#f2d23f", star:5, note:"ブラジル代表。スピードとトリック。", だまし:85, キック力:74 },
+  { name:"オヤルサバル", color:"#d94a4a", star:4, note:"スペイン代表。PKに強い。", だまし:62, キック力:78 },
+  { name:"ククレジャ", color:"#d94a4a", star:3, note:"スペイン代表DF。守備の選手。", だまし:40, キック力:55 },
+  { name:"門川直人", color:"#ffcc33", star:5, note:"あなた（直人）。数値は自由に調整しよう！", だまし:85, キック力:85 },
+];
+// モブ（雑魚）を自動生成してプールに混ぜる
+function makeMobs(kind, n){
+  var names=["ざこ","へたっぴ","ぼんやり","もたもた","ぐだぐだ","のんびり","よわよわ","ぽんこつ","ヘロヘロ","ふぬけ"];
+  var cols=["#8a8f98","#7f8a80","#8f8577","#79808a","#8a7f8a","#808a86"];
+  var arr=[];
+  for(var i=0;i<n;i++){
+    var nm=names[i%names.length]+(kind==="gk"?"GK":"")+"・"+(i+1);
+    var col=cols[i%cols.length], star=1+(i%2);
+    if(kind==="gk") arr.push({ name:nm, color:col, star:star, note:"モブ｜雑魚キャラ。", 反応:20+(i*7)%26, 守備範囲:24+(i*5)%26, ハイボール:22+(i*9)%26, メンタル:23+(i*11)%26 });
+    else arr.push({ name:nm, color:col, star:star, note:"モブ｜雑魚キャラ。", だまし:8+(i*7)%22, キック力:14+(i*13)%34 });
+  }
+  return arr;
+}
+var KEEPERS = REAL_GKS.concat(makeMobs("gk", 10));
+var KICKERS = REAL_KICKERS.concat(makeMobs("fw", 16));
+/* ▲▲▲ 書き換えるのはここまで ▲▲▲ */
+
+var COLS=4, ROWS=3, ZONES=COLS*ROWS, RUNUP_MS=1800, FLIGHT_MS=200, LOCK=0.9, ROUNDS=5;
+var C = { pitch:"#123f27", line:"rgba(255,255,255,0.8)", ball:"#ffd23f",
+  save:"#35e07a", goal:"#ff5a5f", ink:"#f2f7f3", sub:"#9fc3ac", gold:"#e8b84b", mob:"#7f9d8b" };
+
+function cr(z){ return { c: z % COLS, r: Math.floor(z / COLS) }; }
+function cellDist(a,b){ var A=cr(a),B=cr(b); return Math.hypot(A.c-B.c, A.r-B.r); }
+function allZones(){ var a=[]; for(var i=0;i<ZONES;i++) a.push(i); return a; }
+function shuffle(a){ var x=a.slice(); for(var i=x.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=x[i]; x[i]=x[j]; x[j]=t; } return x; }
+function pickCandidates(t, extra){
+  var pool=shuffle(allZones()).filter(function(z){ return z!==t; }), chosen=[t], i, j, ok;
+  for(i=0;i<pool.length && chosen.length<1+extra;i++){ ok=true; for(j=0;j<chosen.length;j++){ if(cellDist(pool[i],chosen[j])<1.2){ ok=false; break; } } if(ok) chosen.push(pool[i]); }
+  for(i=0;i<pool.length && chosen.length<1+extra;i++){ if(chosen.indexOf(pool[i])<0) chosen.push(pool[i]); }
+  return chosen;
+}
+function glowAlpha(z, gz, progress, react){
+  var start=(1-react/100)*0.55+0.07, conf=Math.max(0,Math.min(1,(progress-start)/(1-start)));
+  if(conf<=0) return 0;
+  var s0=0.7+(1-react/100)*1.9, sigma=s0*(1.38-0.33*conf), d=cellDist(z,gz);
+  return Math.min(0.46, conf*Math.exp(-(d*d)/(2*sigma*sigma))*0.48);
+}
+// セーブ判定（GK能力 × キッカー能力）。saved=true ならGKの勝ち
+function resolveSave(target, committed, gk, kicker, candidates){
+  if(committed==null) return { saved:false, reason:"跳べなかった…", stat:"反応", power:false, hold:false };
+  var d=cellDist(target, committed), topRow=cr(target).r===0;
+  var reachCells=0.52+(gk.守備範囲/100)*1.18, pReach=(reachCells-d)/reachCells;
+  if(topRow) pReach += ((gk.ハイボール-60)/100)*0.47;
+  var wrongCand = committed!==target && candidates && candidates.indexOf(committed)>=0;
+  if(pReach<=0){
+    if(wrongCand) return { saved:false, reason:"別の狙いに釣られた…", stat:"だまし", power:false, hold:false };
+    return { saved:false, reason: d>=2.5?"逆を突かれた！":"そこまで届かなかった…", stat: topRow?"ハイボール":"守備範囲", power:false, hold:false };
+  }
+  pReach=Math.min(1,pReach);
+  var chance=(0.44+(gk.メンタル/100)*0.44)*pReach*100;
+  var push=kicker.キック力*0.35*(1-(gk.メンタル/100)*0.4);
+  chance=Math.max(0, Math.min(96, chance-push));
+  var saved=Math.random()*100<chance, near=d<0.5;
+  if(saved) return { saved:true, reason: near?"読み切ってキャッチ！":"手を伸ばして弾いた！", stat: near?"メンタル":(topRow?"ハイボール":"守備範囲"), power:false, hold:near };
+  if(near) return { saved:false, reason:"読み勝ったが押し込まれた…", stat:"キック力", power:true, hold:false };
+  if(wrongCand) return { saved:false, reason:"別の狙いに釣られた…", stat:"だまし", power:false, hold:false };
+  return { saved:false, reason:"あと一歩、届かず…", stat:"守備範囲", power:false, hold:false };
+}
+// 攻撃時：相手GKがあなたのコースをどこと読むか
+function neighborZone(z){ var n=allZones().filter(function(i){ var d=cellDist(i,z); return d>0&&d<1.5; }); return n[Math.floor(Math.random()*n.length)]; }
+function farZone(z){ var f=allZones().filter(function(i){ return cellDist(i,z)>=2; }); return f.length? f[Math.floor(Math.random()*f.length)] : neighborZone(z); }
+function keeperGuess(shot, gk, kicker){
+  var read=Math.max(0.06, Math.min(0.94, gk.反応/100 - kicker.だまし/160));
+  if(Math.random()<read) return Math.random()<0.6 ? shot : neighborZone(shot);
+  return farZone(shot);
+}
+
+// 人型キーパー（24×24ドット絵。ユニフォームはチームのGK色）
+function keeperSVG(color){
+  var g="#f4f4f4", s="#f1c9a2", hair="#3a2a20", eye="#20303a", p="#22303a", b="#12181c", sh=shade(color);
+  var px=[
+    [3,0,3,3,g],[18,0,3,3,g],
+    [5,3,2,2,color],[6,5,2,2,color],[7,7,2,2,color],[8,9,2,2,color],
+    [17,3,2,2,color],[16,5,2,2,color],[15,7,2,2,color],[14,9,2,2,color],
+    [9,4,6,2,hair],[9,6,1,3,hair],[14,6,1,3,hair],
+    [10,6,4,5,s],
+    [10,8,1,1,eye],[13,8,1,1,eye],
+    [7,11,10,2,color],[8,13,8,5,color],[8,13,1,5,sh],[15,13,1,5,sh],
+    [8,18,8,2,p],
+    [8,20,3,3,p],[13,20,3,3,p],
+    [8,23,4,1,b],[13,23,4,1,b]
+  ];
+  var r=""; px.forEach(function(a){ r+='<rect x="'+a[0]+'" y="'+a[1]+'" width="'+a[2]+'" height="'+a[3]+'" fill="'+a[4]+'"/>'; });
+  return '<svg width="34" height="34" viewBox="0 0 24 24" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">'+r+'</svg>';
+}
+function shade(hex){
+  var m=/^#?([0-9a-f]{6})$/i.exec(hex); if(!m) return hex;
+  var n=parseInt(m[1],16), r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  r=Math.round(r*0.7); g=Math.round(g*0.7); b=Math.round(b*0.7);
+  return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+// 顔イラスト（名前から自動生成）
+function hashStr(s){ var h=5381; for(var i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; } return Math.abs(h); }
+function avatarSVG(name, color){
+  var seed=hashStr(name||"x");
+  var skins=["#f4cda6","#eabb8a","#d79a6b","#c88a5a","#f0c19a"], hairs=["#2a2320","#4a2f1d","#12100f","#5c3a1c","#6f4a2a","#3b2a22","#8a5a34"];
+  var skin=skins[seed%skins.length], hair=hairs[Math.floor(seed/5)%hairs.length];
+  var hstyle=seed%3, mouth=Math.floor(seed/7)%3, browY=48+((seed%2)?0:2);
+  var hairPath = hstyle===0 ? '<path d="M27,46 Q30,22 50,22 Q70,22 73,46 Q66,34 50,33 Q34,34 27,46 Z" fill="'+hair+'"/>'
+    : hstyle===1 ? '<path d="M28,46 L33,28 L40,40 L46,25 L52,40 L59,26 L66,41 L72,46 Q60,34 50,33 Q38,34 28,46 Z" fill="'+hair+'"/>'
+    : '<path d="M29,45 Q32,28 50,28 Q68,28 71,45 Q64,38 50,37 Q36,38 29,45 Z" fill="'+hair+'" opacity="0.92"/>';
+  var mouthPath = mouth===0 ? '<path d="M43,70 Q50,76 58,69" stroke="#6b3b2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+    : mouth===1 ? '<line x1="44" y1="71" x2="57" y2="71" stroke="#6b3b2e" stroke-width="2.5" stroke-linecap="round"/>'
+    : '<ellipse cx="50" cy="72" rx="5" ry="4" fill="#7a3b30"/>';
+  return '<svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">'
+    + '<circle cx="50" cy="50" r="48" fill="'+color+'" opacity="0.16"/><circle cx="50" cy="50" r="47" fill="none" stroke="'+color+'" stroke-width="3"/>'
+    + '<path d="M20,94 Q50,70 80,94 L80,100 L20,100 Z" fill="'+color+'"/>'
+    + '<ellipse cx="50" cy="56" rx="21" ry="25" fill="'+skin+'"/><circle cx="28.5" cy="56" r="4" fill="'+skin+'"/><circle cx="71.5" cy="56" r="4" fill="'+skin+'"/>'
+    + hairPath + '<circle cx="42" cy="57" r="3" fill="#243040"/><circle cx="58" cy="57" r="3" fill="#243040"/>'
+    + '<line x1="37" y1="'+browY+'" x2="46" y2="'+(browY-1)+'" stroke="'+hair+'" stroke-width="2.5" stroke-linecap="round"/>'
+    + '<line x1="54" y1="'+(browY-1)+'" x2="63" y2="'+browY+'" stroke="'+hair+'" stroke-width="2.5" stroke-linecap="round"/>'
+    + mouthPath + '</svg>';
+}
+function stars(n){ n=Math.max(0,Math.min(5, n|0)); return "★★★★★".slice(0,n)+"☆☆☆☆☆".slice(0,5-n); }
+function keeperTags(gk){
+  var m=[["鋭い読み",gk.反応],["広い守備範囲",gk.守備範囲],["ハイボールに強い",gk.ハイボール],["強いメンタル",gk.メンタル]];
+  m.sort(function(a,b){ return b[1]-a[1]; }); return [m[0][0], m[1][0]];
+}
+function kickerTags(k){
+  var t=[]; if(k.だまし>=70) t.push("フェイントの名手"); else if(k.だまし>=45) t.push("かけひき上手");
+  if(k.キック力>=85) t.push("超強烈なシュート"); else if(k.キック力>=60) t.push("強いキック力");
+  if(t.length===0) t.push("正攻法タイプ"); return t;
+}
+
+/* ---------- 状態 ---------- */
+var S={};
+var introPref=true;
+function resetGame(){
+  S={ screen:"mode", mode:"vs", intro:introPref, youTeam:null, oppTeam:null, round:1, youScore:0, oppScore:0, saves:0, sudden:false,
+      youMarks:[], oppMarks:[], turn:"attack", phase:"", shot:null, guess:null, ao:null,
+      dtarget:null, candidates:[], committed:null, progress:0, dout:null };
+}
+resetGame();
+var raf=0, flightTimer=0, ui={};
+function clearTimers(){ cancelAnimationFrame(raf); clearTimeout(flightTimer); }
+var app=document.getElementById("app");
+function h(tag,style,text){ var e=document.createElement(tag); if(style) e.setAttribute("style",style); if(text!=null) e.textContent=text; return e; }
+function myKicker(){ var k=S.youTeam.kickers; return k[(S.round-1)%k.length]; }
+function oppKicker(){ var k=S.oppTeam.kickers; return k[(S.round-1)%k.length]; }
+
+/* ---------- 小物 ---------- */
+function bigButton(label,color,onClick){
+  var b=h("button","width:100%;padding:14px;border-radius:12px;border:none;background:"+color+";color:#0b1f13;font-size:17px;font-weight:800;cursor:pointer;touch-action:manipulation",label);
+  b.addEventListener("click",onClick); return b;
+}
+function navBtn(label){ return h("button","background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);color:"+C.sub+";font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;touch-action:manipulation",label); }
+function navBar(backFn){
+  var bar=h("div","display:flex;justify-content:space-between;align-items:center;margin-bottom:6px");
+  if(backFn){ var b=navBtn("‹ 戻る"); b.addEventListener("click",backFn); bar.appendChild(b); } else bar.appendChild(h("div"));
+  var home=navBtn("トップ"); home.addEventListener("click",goTop); bar.appendChild(home);
+  return bar;
+}
+function goTop(){ clearTimers(); resetGame(); renderModeSelect(); }
+function statBars(gk,color){
+  var wrap=h("div","display:grid;gap:6px");
+  [["反応",gk.反応],["守備範囲",gk.守備範囲],["ハイボール",gk.ハイボール],["メンタル",gk.メンタル]].forEach(function(row){
+    var r=h("div","display:flex;align-items:center;gap:8px");
+    r.appendChild(h("span","width:66px;font-size:12px;color:"+C.sub,row[0]));
+    var t=h("div","flex:1;height:8px;background:rgba(255,255,255,0.08);border-radius:5px");
+    t.appendChild(h("div","width:"+row[1]+"%;height:100%;background:"+color+";border-radius:5px")); r.appendChild(t);
+    r.appendChild(h("span","width:26px;text-align:right;font-size:12px;color:"+C.ink,row[1])); wrap.appendChild(r);
+  });
+  return wrap;
+}
+function miniBar(label,v,color){
+  var w=h("div","flex:1;display:flex;align-items:center;gap:6px");
+  w.appendChild(h("span","font-size:10px;color:"+C.sub+";width:46px",label));
+  var t=h("div","flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:4px");
+  t.appendChild(h("div","width:"+v+"%;height:100%;background:"+color+";border-radius:4px")); w.appendChild(t); return w;
+}
+function avatarBox(name,color,size){ var d=h("div","width:"+size+"px;height:"+size+"px;flex:0 0 auto"); d.innerHTML=avatarSVG(name,color); return d; }
+
+/* ---------- モード選択 ---------- */
+function renderModeSelect(){
+  clearTimers(); app.innerHTML="";
+  var head=h("div","margin-bottom:16px"); head.appendChild(h("h1",null,"PK戦"));
+  head.appendChild(h("p","margin:4px 0 0;color:"+C.sub+";font-size:13px","モードを選ぼう")); app.appendChild(head);
+  var tog=h("button","width:100%;text-align:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.16);color:"+C.ink+";font-size:13px;font-weight:700;padding:10px;border-radius:12px;cursor:pointer;margin-bottom:14px;touch-action:manipulation","登場演出： "+(introPref?"あり ✓":"なし"));
+  tog.addEventListener("click", function(){ introPref=!introPref; S.intro=introPref; renderModeSelect(); });
+  app.appendChild(tog);
+  var modes=[
+    ["vs","対戦モード","攻めも守りも。チーム対チームで勝敗を決める。","#4bc0e8"],
+    ["kick","キッカーモード","蹴る専門。相手GKから何点取れる？","#ffd23f"],
+    ["keep","キーパーモード","守る専門。相手の5人を何本止められる？","#35e07a"]
+  ];
+  var list=h("div","display:grid;gap:12px");
+  modes.forEach(function(m){
+    var card=h("button","text-align:left;background:rgba(255,255,255,0.04);border:1.5px solid "+m[3]+";border-radius:14px;padding:16px;color:"+C.ink+";cursor:pointer;touch-action:manipulation;width:100%");
+    card.appendChild(h("div","font-size:19px;font-weight:900;color:"+m[3],m[1]));
+    card.appendChild(h("div","font-size:13px;color:"+C.sub+";margin-top:4px",m[2]));
+    card.addEventListener("click", function(){ S.mode=m[0]; beginSelection(); });
+    list.appendChild(card);
+  });
+  app.appendChild(list);
+}
+
+/* ---------- チーム選択 ---------- */
+/* ---------- 選手プール & 共通部品 ---------- */
+function allGKs(){ return KEEPERS; }
+function allKickers(){ return KICKERS; }
+function randGK(){ return KEEPERS[Math.floor(Math.random()*KEEPERS.length)]; }
+function randKickers(n){ return shuffle(KICKERS).slice(0,n); }
+function ghostGK(){ return { name:"—", color:"#5a6a60", star:1, 反応:50, 守備範囲:50, ハイボール:50, メンタル:50, note:"" }; }
+function header(title, sub){ var d=h("div","margin-bottom:12px"); d.appendChild(h("h1",null,title)); if(sub) d.appendChild(h("p","margin:4px 0 0;color:"+C.sub+";font-size:13px",sub)); app.appendChild(d); }
+function kickersSummary(tm){
+  var row=h("div","display:flex;align-items:center;gap:8px;margin-top:6px");
+  row.appendChild(h("span","font-size:10px;font-weight:700;color:"+C.sub+";width:22px","FW"));
+  if(!tm.kickers || !tm.kickers.length){ row.appendChild(h("span","font-size:12px;color:"+C.sub,"—")); return row; }
+  var strip=h("div","display:flex;gap:3px");
+  tm.kickers.forEach(function(k){ strip.appendChild(avatarBox(k.name, k.color||tm.color, 22)); });
+  row.appendChild(strip);
+  var avg=Math.round(tm.kickers.reduce(function(a,k){ return a+k.star; },0)/tm.kickers.length);
+  row.appendChild(h("span","font-size:11px;color:"+C.gold+";margin-left:auto;letter-spacing:1px",stars(avg)));
+  return row;
+}
+function memberRow(role, m){
+  var row=h("div","display:flex;align-items:center;gap:9px;margin-top:4px");
+  row.appendChild(avatarBox(m.name, m.color, 30));
+  var col=h("div","flex:1;min-width:0");
+  var l1=h("div","display:flex;align-items:center;gap:6px");
+  l1.appendChild(h("span","font-size:10px;font-weight:700;color:"+C.sub+";width:22px",role));
+  l1.appendChild(h("span","font-size:14px;font-weight:700;color:"+C.ink+";overflow:hidden;text-overflow:ellipsis;white-space:nowrap",m.name));
+  col.appendChild(l1); col.appendChild(h("div","font-size:12px;color:"+C.gold+";letter-spacing:1px",stars(m.star)));
+  row.appendChild(col); return row;
+}
+function teamCard(tm, onClick){
+  var card=h("button","text-align:left;background:rgba(255,255,255,0.04);border:1.5px solid "+tm.color+";border-radius:14px;padding:12px;color:"+C.ink+";cursor:pointer;touch-action:manipulation;width:100%");
+  var top=h("div","display:flex;align-items:center;gap:10px;margin-bottom:8px");
+  top.appendChild(h("span","width:12px;height:12px;border-radius:50%;background:"+tm.color+";display:inline-block;flex:0 0 auto"));
+  top.appendChild(h("span","font-size:18px;font-weight:900;color:"+tm.color,tm.name));
+  card.appendChild(top); card.appendChild(memberRow("GK", tm.gk)); card.appendChild(kickersSummary(tm));
+  card.addEventListener("click", onClick); return card;
+}
+
+/* ---------- 選択フロー（モード別）---------- */
+function beginSelection(){
+  S.youTeam=null; S.oppTeam=null; S.round=1; S.youScore=0; S.oppScore=0; S.saves=0; S.sudden=false; S.youMarks=[]; S.oppMarks=[];
+  if(S.mode==="keep") selKeepYou();
+  else if(S.mode==="kick") selKickYou();
+  else selVsYou();
+}
+function backToOpp(){ if(S.mode==="keep") selKeepOpp(); else if(S.mode==="kick") selKickOpp(); else selVsOpp(); }
+
+// キーパーモード：自分GK → 相手キッカー5人
+function selKeepYou(){ renderPickGK({ title:"自分のGKを選ぶ", sub:"このGKで守る", back:renderModeSelect, onPick:function(gk){ S.pYouGK=gk; selKeepOpp(); } }); }
+function selKeepOpp(){
+  renderPickOpp({ title:"相手を選ぶ", sub:"蹴ってくる5人（おまかせ or 個別）", back:selKeepYou,
+    onRandom:function(){ var ks=randKickers(5); finishSel({ youGK:S.pYouGK, oppKickers:ks, oppName:"おまかせ", oppColor:ks[0].color }); },
+    individual:function(){ renderPickKickers({ title:"相手キッカー5人を選ぶ", sub:"蹴ってくる順に5人", back:selKeepOpp,
+      onDone:function(ks){ finishSel({ youGK:S.pYouGK, oppKickers:ks, oppName:"相手", oppColor:ks[0].color }); } }); } });
+}
+// キッカーモード：自分キッカー5人 → 相手GK
+function selKickYou(){ renderPickKickers({ title:"自分のキッカー5人を選ぶ", sub:"蹴る順に5人", back:renderModeSelect, onDone:function(ks){ S.pYouKickers=ks; selKickOpp(); } }); }
+function selKickOpp(){
+  renderPickOpp({ title:"相手を選ぶ", sub:"点を取る相手GK（おまかせ or 個別）", back:selKickYou,
+    onRandom:function(){ var g=randGK(); finishSel({ youKickers:S.pYouKickers, oppGK:g, oppName:"おまかせ", oppColor:g.color }); },
+    individual:function(){ renderPickGK({ title:"相手GKを選ぶ", sub:"このGKから点を取る", back:selKickOpp,
+      onPick:function(gk){ finishSel({ youKickers:S.pYouKickers, oppGK:gk, oppName:"相手", oppColor:gk.color }); } }); } });
+}
+// 対戦モード：自分GK → 自分キッカー5人 → 相手（チーム or 個別）
+function selVsYou(){ renderPickGK({ title:"自分のGKを選ぶ", sub:"守護神", back:renderModeSelect, onPick:function(gk){ S.pYouGK=gk; selVsYouK(); } }); }
+function selVsYouK(){ renderPickKickers({ title:"自分のキッカー5人を選ぶ", sub:"蹴る順に5人", back:selVsYou, onDone:function(ks){ S.pYouKickers=ks; selVsOpp(); } }); }
+function selVsOpp(){
+  renderPickOpp({ title:"相手を選ぶ", sub:"おまかせ or 個別", back:selVsYouK,
+    onRandom:function(){ var g=randGK(), ks=randKickers(5); finishSel({ youGK:S.pYouGK, youKickers:S.pYouKickers, oppGK:g, oppKickers:ks, oppName:"おまかせ", oppColor:g.color }); },
+    individual:function(){ renderPickGK({ title:"相手GKを選ぶ", sub:"守護神", back:selVsOpp, onPick:function(g){ S.pOppGK=g;
+      renderPickKickers({ title:"相手キッカー5人を選ぶ", sub:"蹴る順に5人", back:selVsOpp,
+        onDone:function(ks){ finishSel({ youGK:S.pYouGK, youKickers:S.pYouKickers, oppGK:S.pOppGK, oppKickers:ks, oppName:"相手", oppColor:S.pOppGK.color }); } }); } }); } });
+}
+function finishSel(c){
+  S.youTeam={ name:"あなた", color:(c.youGK?c.youGK.color:(c.youKickers&&c.youKickers[0]?c.youKickers[0].color:"#4bc0e8")), gk:c.youGK||ghostGK(), kickers:c.youKickers||[] };
+  S.oppTeam={ name:c.oppName||"相手", color:c.oppColor||"#d94a4a", gk:c.oppGK||ghostGK(), kickers:c.oppKickers||[] };
+  renderMatchIntro();
+}
+
+/* ---------- ピッカー ---------- */
+function renderPickGK(cfg){
+  clearTimers(); app.innerHTML="";
+  app.appendChild(navBar(cfg.back)); header(cfg.title, cfg.sub);
+  var list=h("div","display:grid;gap:10px");
+  allGKs().forEach(function(gk){
+    var card=h("button","text-align:left;background:rgba(255,255,255,0.04);border:1.5px solid "+gk.color+";border-radius:14px;padding:12px;color:"+C.ink+";cursor:pointer;touch-action:manipulation;width:100%");
+    var top=h("div","display:flex;align-items:center;gap:10px;margin-bottom:8px");
+    top.appendChild(avatarBox(gk.name, gk.color, 40));
+    var nm=h("div"); nm.appendChild(h("div","font-size:17px;font-weight:800;color:"+gk.color,gk.name));
+    nm.appendChild(h("div","font-size:12px;color:"+C.gold+";letter-spacing:1px",stars(gk.star))); top.appendChild(nm);
+    card.appendChild(top); card.appendChild(statBars(gk, gk.color));
+    card.addEventListener("click", function(){ cfg.onPick(gk); });
+    list.appendChild(card);
+  });
+  app.appendChild(list);
+}
+function renderPickKickers(cfg){
+  var chosen=[];
+  function draw(){
+    clearTimers(); app.innerHTML="";
+    app.appendChild(navBar(cfg.back)); header(cfg.title, cfg.sub);
+    app.appendChild(h("div","font-size:13px;color:"+C.sub+";margin-bottom:8px", chosen.length+" / 5 人（タップで追加／もう一度で外す）"));
+    var grid=h("div","display:grid;grid-template-columns:1fr 1fr;gap:8px");
+    allKickers().forEach(function(k){
+      var order=chosen.indexOf(k), sel=order>=0;
+      var card=h("button","position:relative;text-align:left;background:"+(sel?"rgba(255,255,255,0.10)":"rgba(255,255,255,0.04)")+";border:"+(sel?"2px":"1px")+" solid "+(sel?k.color:"rgba(255,255,255,0.14)")+";border-radius:12px;padding:10px;color:"+C.ink+";cursor:pointer;touch-action:manipulation");
+      var top=h("div","display:flex;align-items:center;gap:8px;margin-bottom:6px");
+      top.appendChild(avatarBox(k.name,k.color,30));
+      var nm=h("div","min-width:0");
+      nm.appendChild(h("div","font-size:13px;font-weight:700;color:"+C.ink+";overflow:hidden;text-overflow:ellipsis;white-space:nowrap",k.name));
+      nm.appendChild(h("div","font-size:10px;color:"+C.gold,stars(k.star))); top.appendChild(nm);
+      card.appendChild(top);
+      var row=h("div","display:flex;gap:8px"); row.appendChild(miniBar("だ",k.だまし,C.goal)); row.appendChild(miniBar("力",k.キック力,C.ball)); card.appendChild(row);
+      if(sel) card.appendChild(h("span","position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:"+k.color+";color:#0b1f13;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center",""+(order+1)));
+      card.addEventListener("click", function(){ var i=chosen.indexOf(k); if(i>=0) chosen.splice(i,1); else if(chosen.length<5) chosen.push(k); draw(); });
+      grid.appendChild(card);
+    });
+    app.appendChild(grid);
+    var ok=chosen.length===5;
+    var wrap=h("div","margin-top:12px"); wrap.appendChild(bigButton("決定（"+chosen.length+"/5）", ok?"#4bc0e8":"rgba(255,255,255,0.15)", function(){ if(ok) cfg.onDone(chosen.slice()); })); app.appendChild(wrap);
+  }
+  draw();
+}
+function renderPickOpp(cfg){
+  clearTimers(); app.innerHTML="";
+  app.appendChild(navBar(cfg.back)); header(cfg.title, cfg.sub);
+  app.appendChild(bigButton("おまかせ（ランダム編成）", "#4bc0e8", cfg.onRandom));
+  var ind=h("button","width:100%;text-align:center;background:rgba(255,255,255,0.06);border:1px dashed rgba(255,255,255,0.25);color:"+C.ink+";font-size:13px;font-weight:700;padding:12px;border-radius:12px;cursor:pointer;margin-top:12px;touch-action:manipulation","個別に選ぶ ›");
+  ind.addEventListener("click", cfg.individual); app.appendChild(ind);
+  app.appendChild(h("p","color:"+C.sub+";font-size:12px;margin-top:14px;line-height:1.6","おまかせは強い選手も雑魚も混ざってランダムに出ます。"));
+}
+
+/* ---------- 対戦カード ---------- */
+function renderMatchIntro(){
+  clearTimers(); app.innerHTML="";
+  app.appendChild(navBar(backToOpp));
+  var wrap=h("div","text-align:center;animation:gkIn 320ms ease-out");
+  wrap.appendChild(h("div","color:"+C.sub+";font-size:12px;letter-spacing:3px;margin-bottom:10px","PK戦"));
+  wrap.appendChild(teamBig(S.youTeam,"YOU"));
+  wrap.appendChild(h("div","font-size:22px;font-weight:900;color:"+C.ink+";margin:8px 0","VS"));
+  wrap.appendChild(teamBig(S.oppTeam,"OPP"));
+  wrap.appendChild(h("div","height:16px"));
+  var label = S.mode==="kick" ? "キック開始！" : S.mode==="keep" ? "PK開始！" : "キックオフ！";
+  wrap.appendChild(bigButton(label, S.youTeam.color, function(){ beginRound(1); }));
+  app.appendChild(wrap);
+}
+function teamBig(tm,label){
+  var box=h("div","background:rgba(255,255,255,0.04);border:1px solid "+tm.color+"66;border-radius:14px;padding:10px 12px;max-width:340px;margin:0 auto");
+  var head=h("div","display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:8px");
+  head.appendChild(h("span","font-size:10px;font-weight:700;color:"+C.sub,label));
+  head.appendChild(h("span","font-size:17px;font-weight:900;color:"+tm.color,tm.name));
+  box.appendChild(head);
+  var row=h("div","display:flex;gap:10px;align-items:center;justify-content:center");
+  if(tm.gk && tm.gk.name!=="—") row.appendChild(teamCell("GK",tm.gk));
+  if(tm.kickers && tm.kickers.length){ var fw=h("div","flex:1"); fw.appendChild(kickersSummary(tm)); row.appendChild(fw); }
+  box.appendChild(row); return box;
+}
+function teamCell(role,m){
+  var c=h("div","flex:1;text-align:center");
+  c.appendChild(avatarBox(m.name,m.color,44));
+  c.firstChild.setAttribute("style","width:44px;height:44px;margin:0 auto");
+  c.appendChild(h("div","font-size:9px;color:"+C.sub+";margin-top:2px",role));
+  c.appendChild(h("div","font-size:12px;font-weight:700;color:"+C.ink+";overflow:hidden;text-overflow:ellipsis;white-space:nowrap",m.name));
+  c.appendChild(h("div","font-size:11px;color:"+C.gold,stars(m.star)));
+  return c;
+}
+
+/* ---------- スコアボード & ピッチ ---------- */
+function scoreboard(){
+  var bar=h("div","display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px");
+  bar.appendChild(teamDot(S.youTeam));
+  var sc=h("div","text-align:center;min-width:82px");
+  var main = S.mode==="vs" ? (S.youScore+" - "+S.oppScore) : S.mode==="kick" ? ("得点 "+S.youScore) : ("セーブ "+S.saves);
+  sc.appendChild(h("div","font-size:22px;font-weight:900;color:"+C.ink, main));
+  sc.appendChild(h("div","font-size:11px;color:"+C.sub, S.sudden?"延長":(S.round+" / "+ROUNDS)));
+  bar.appendChild(sc);
+  bar.appendChild(teamDot(S.oppTeam));
+  return bar;
+}
+function teamDot(tm){
+  var d=h("div","display:flex;align-items:center;gap:5px;max-width:110px");
+  d.appendChild(h("span","width:9px;height:9px;border-radius:50%;background:"+tm.color+";flex:0 0 auto"));
+  d.appendChild(h("span","font-size:12px;font-weight:700;color:"+tm.color+";overflow:hidden;text-overflow:ellipsis;white-space:nowrap",tm.name));
+  return d;
+}
+function buildPitch(keeperColor){
+  var pitch=h("div","margin-top:10px;background:linear-gradient("+C.pitch+", #0c2c1b);border-radius:14px;padding:14px;border:1px solid rgba(255,255,255,0.08)");
+  var frame=h("div","border:4px solid "+C.line+";border-bottom:none;border-radius:6px 6px 0 0;padding:6px;background:rgba(255,255,255,0.03)"); ui.frame=frame;
+  var grid=h("div","position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:6px"); ui.grid=grid; ui.cells=[];
+  for(var z=0;z<ZONES;z++){ (function(z){
+    var cell=h("button","position:relative;aspect-ratio:1/1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;cursor:default;touch-action:manipulation;display:flex;align-items:center;justify-content:center;transition:background 90ms,border-color 120ms");
+    cell.addEventListener("pointerdown", function(){ if(ui.onCell) ui.onCell(z); });
+    grid.appendChild(cell); ui.cells.push(cell);
+  })(z); }
+  var ball=h("div","position:absolute;left:0;top:0;width:28px;height:28px;pointer-events:none;opacity:0;display:flex;align-items:center;justify-content:center");
+  var ballInner=h("span","font-size:24px;display:inline-block","⚽"); ball.appendChild(ballInner); ui.ball=ball; ui.ballInner=ballInner; grid.appendChild(ball);
+  var keeper=h("div","position:absolute;left:0;top:0;width:34px;height:40px;pointer-events:none;opacity:0;display:flex;align-items:center;justify-content:center;z-index:2");
+  var keeperInner=h("span","display:inline-block;line-height:0"); keeperInner.innerHTML=keeperSVG(keeperColor);
+  keeper.appendChild(keeperInner); ui.keeper=keeper; ui.keeperInner=keeperInner; grid.appendChild(keeper);
+  frame.appendChild(grid); pitch.appendChild(frame);
+  var lane=h("div","position:relative;height:46px;margin-top:8px");
+  lane.appendChild(h("div","position:absolute;left:50%;top:30px;width:7px;height:7px;border-radius:50%;background:"+C.line+";transform:translateX(-50%);opacity:0.9"));
+  var sb=h("div","position:absolute;left:50%;top:20px;transform:translateX(-50%);font-size:20px","⚽"); ui.staticBall=sb; lane.appendChild(sb);
+  var runner=h("div","position:absolute;left:50%;top:2px;transform:translateX(-50%);font-size:26px;transition:transform 120ms;opacity:0","🏃"); ui.runner=runner; lane.appendChild(runner);
+  pitch.appendChild(lane);
+  return pitch;
+}
+function placeKeeperRest(){
+  if(!ui.grid||!ui.keeper) return;
+  var gr=ui.grid.getBoundingClientRect();
+  ui.keeper._restX=gr.width/2; ui.keeper._restY=gr.height*0.72;
+  ui.keeper.style.transition="none"; ui.keeper.style.opacity="1";
+  ui.keeper.style.transform="translate(-50%,-50%) translate("+ui.keeper._restX+"px,"+ui.keeper._restY+"px) rotate(0deg)";
+  ui.keeperInner.style.transition="none"; ui.keeperInner.style.transform="scale(1)";
+  requestAnimationFrame(function(){ if(ui.keeper) ui.keeper.style.transition="transform 240ms cubic-bezier(.3,.7,.4,1)"; });
+}
+function diveKeeper(z){
+  if(!ui.grid||!ui.keeper) return;
+  var gr=ui.grid.getBoundingClientRect(), c=ui.cells[z].getBoundingClientRect();
+  var tx=c.left+c.width/2-gr.left, ty=c.top+c.height/2-gr.top;
+  var restX=ui.keeper._restX!=null?ui.keeper._restX:gr.width/2;
+  var angle=Math.max(-80,Math.min(80,(tx-restX)/gr.width*160));
+  ui.keeper.style.transition="transform 240ms cubic-bezier(.25,.8,.35,1)";
+  ui.keeper.style.transform="translate(-50%,-50%) translate("+tx+"px,"+ty+"px) rotate("+angle+"deg)";
+  ui.keeperInner.style.transition="transform 240ms ease-out"; ui.keeperInner.style.transform="scale(1.15)";
+}
+function flyBallTo(z, dur, cb){
+  var gr=ui.grid.getBoundingClientRect(), c=ui.cells[z].getBoundingClientRect();
+  var tx=c.left+c.width/2-gr.left, ty=c.top+c.height/2-gr.top, b=ui.ball;
+  ui.staticBall.style.display="none";
+  b.style.transition="none"; b.style.opacity="1";
+  b.style.transform="translate(-50%,-50%) translate("+(gr.width/2)+"px,"+(gr.height+30)+"px)";
+  ui.ballInner.style.animation="gkSpin 400ms linear infinite";
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    b.style.transition="transform "+dur+"ms cubic-bezier(.3,.6,.5,1)";
+    b.style.transform="translate(-50%,-50%) translate("+tx+"px,"+ty+"px)";
+  });});
+  flightTimer=setTimeout(cb, dur+40);
+}
+function flashCell(z,col){
+  var cell=ui.cells[z]; if(!cell) return;
+  var f=document.createElement("div");
+  f.setAttribute("style","position:absolute;inset:-2px;border-radius:10px;pointer-events:none;border:2px solid "+col+";opacity:.9;animation:gkFlash 440ms ease-out forwards");
+  cell.appendChild(f); setTimeout(function(){ if(f.parentNode) f.parentNode.removeChild(f); }, 470);
+}
+function powerBlast(t){
+  ui.ballInner.style.transition="transform 90ms ease-out"; ui.ballInner.style.transform="scale(1.6)";
+  setTimeout(function(){ if(ui.ballInner) ui.ballInner.style.transform="scale(1)"; }, 130);
+  if(ui.keeper&&ui.grid){ var gr=ui.grid.getBoundingClientRect(), c=ui.cells[t].getBoundingClientRect();
+    var tx=c.left+c.width/2-gr.left, ty=c.top+c.height/2-gr.top, restX=ui.keeper._restX!=null?ui.keeper._restX:gr.width/2, dir=tx>=restX?1:-1;
+    ui.keeper.style.transition="transform 160ms ease-out";
+    ui.keeper.style.transform="translate(-50%,-50%) translate("+(tx+dir*10)+"px,"+(ty+8)+"px) rotate("+(dir*95)+"deg)"; }
+  if(ui.frame){ ui.frame.style.animation="gkShake 260ms ease-in-out"; setTimeout(function(){ if(ui.frame) ui.frame.style.animation="none"; },300); }
+}
+function deflectBall(t){
+  flashCell(t,C.save);
+  ui.keeperInner.style.transition="transform 120ms ease-out"; ui.keeperInner.style.transform="scale(1.3)";
+  setTimeout(function(){ if(ui.keeperInner) ui.keeperInner.style.transform="scale(1.12)"; },260);
+  if(!ui.grid) return;
+  var gr=ui.grid.getBoundingClientRect(), c=ui.cells[t].getBoundingClientRect();
+  var tx=c.left+c.width/2-gr.left, ty=c.top+c.height/2-gr.top, restX=ui.keeper&&ui.keeper._restX!=null?ui.keeper._restX:gr.width/2, dir=tx>=restX?1:-1;
+  var offX=tx+dir*gr.width*0.55, offY=ty-gr.height*0.5;
+  ui.ballInner.style.animation="gkSpin 250ms linear infinite";
+  setTimeout(function(){ ui.ball.style.transition="transform 340ms cubic-bezier(.2,.8,.4,1), opacity 340ms"; ui.ball.style.transform="translate(-50%,-50%) translate("+offX+"px,"+offY+"px)"; ui.ball.style.opacity="0"; },80);
+}
+function catchEffect(t){
+  flashCell(t,C.save); ui.ballInner.style.animation="none";
+  ui.ballInner.style.transition="transform 110ms ease-out"; ui.ballInner.style.transform="scale(0.8)";
+  setTimeout(function(){ if(ui.ballInner) ui.ballInner.style.transform="scale(1)"; },150);
+  ui.keeperInner.style.transition="transform 140ms ease-out"; ui.keeperInner.style.transform="scale(1.26)";
+  setTimeout(function(){ if(ui.keeperInner) ui.keeperInner.style.transform="scale(1.1)"; },260);
+}
+function goalBurst(z,color){
+  flashCell(z,color);
+  ui.ballInner.style.transition="transform 120ms ease-out"; ui.ballInner.style.transform="scale(1.25)";
+  setTimeout(function(){ if(ui.ballInner) ui.ballInner.style.transform="scale(1)"; },160);
+  if(ui.frame){ ui.frame.style.animation="gkShake 260ms ease-in-out"; setTimeout(function(){ if(ui.frame) ui.frame.style.animation="none"; },300); }
+}
+
+/* ---------- 途中経過 ○×○ ---------- */
+function marksRow(label, color, arr, invert){
+  var row=h("div","display:flex;align-items:center;gap:8px;justify-content:center;margin-top:3px");
+  if(label!=null) row.appendChild(h("span","font-size:11px;font-weight:700;color:"+color+";width:70px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap",label));
+  var marks=h("div","display:flex;gap:3px"); var total=Math.max(ROUNDS, arr.length);
+  for(var i=0;i<total;i++){
+    var ch, col;
+    if(i<arr.length){ var ok=invert?!arr[i]:arr[i]; ch=ok?"○":"×"; col=ok?C.save:C.goal; }
+    else { ch="・"; col=C.sub; }
+    marks.appendChild(h("span","display:inline-block;width:20px;text-align:center;line-height:20px;font-size:16px;font-weight:800;color:"+col,ch));
+  }
+  row.appendChild(marks); return row;
+}
+function marksBar(){
+  var box=h("div","margin:4px 0 6px");
+  if(S.mode==="vs"){
+    box.appendChild(marksRow(S.youTeam.name, S.youTeam.color, S.youMarks, false));
+    box.appendChild(marksRow(S.oppTeam.name, S.oppTeam.color, S.oppMarks, false));
+  } else if(S.mode==="kick"){
+    box.appendChild(marksRow("あなた", C.ball, S.youMarks, false));
+  } else {
+    box.appendChild(marksRow(S.oppTeam.name, S.oppTeam.color, S.oppMarks, false));
+  }
+  return box;
+}
+
+/* ---------- ラウンド進行 ---------- */
+function beginRound(r){ clearTimers(); S.round=r; if(S.mode==="keep") enterDefend(); else enterAttack(); }
+function enterAttack(){ S.turn="attack"; if(S.intro){ var you=myKicker(); playerIntro(you, "第"+S.round+"キッカー（あなた）", kickerTags(you), [kickerMiniEls(you)], S.youTeam.color, renderAttack); } else renderAttack(); }
+function enterDefend(){ if(S.intro){ var k=oppKicker(); playerIntro(k, "第"+S.round+"キッカー（相手）", kickerTags(k), marksWarnEls(k), S.oppTeam.color, startDefend); } else startDefend(); }
+function kickerMiniEls(k){ var mb=h("div","max-width:300px;margin:0 auto"); var row=h("div","display:flex;gap:12px"); row.appendChild(miniBar("だまし",k.だまし,C.goal)); row.appendChild(miniBar("キック力",k.キック力,C.ball)); mb.appendChild(row); return mb; }
+function marksWarnEls(k){
+  var gk=S.youTeam.gk, extra=Math.floor(k.だまし/33); if(gk.メンタル>=75&&extra>0) extra--; var marks=1+extra;
+  var arr=[kickerMiniEls(k)];
+  if(marks>=2) arr.push(h("div","font-size:14px;font-weight:800;color:"+C.goal+";background:rgba(255,90,95,0.12);border:1px solid "+C.goal+"66;border-radius:10px;padding:8px 12px;margin:8px auto 0;max-width:320px","⚠ まとが "+marks+"つ に散らばる！"));
+  if(k.キック力>=85) arr.push(h("div","font-size:13px;font-weight:700;color:"+C.ball+";margin-top:6px","💥 超強烈なキック力！"));
+  return arr;
+}
+function playerIntro(m, roleLabel, tags, extraEls, accent, onGo){
+  clearTimers(); app.innerHTML="";
+  app.appendChild(navBar(null));
+  var wrap=h("div","text-align:center;animation:gkIn 300ms ease-out");
+  wrap.appendChild(scoreboard()); wrap.appendChild(marksBar());
+  wrap.appendChild(h("div","color:"+C.sub+";font-size:12px;letter-spacing:3px;margin:6px 0 2px", roleLabel));
+  var av=h("div","width:128px;height:128px;margin:6px auto 6px"); av.innerHTML=avatarSVG(m.name,m.color); wrap.appendChild(av);
+  wrap.appendChild(h("div","font-size:21px;font-weight:900;color:"+C.ink,m.name));
+  wrap.appendChild(h("div","font-size:15px;color:"+C.gold+";letter-spacing:2px;margin-top:2px",stars(m.star)));
+  var tg=h("div","display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0");
+  tags.forEach(function(t){ tg.appendChild(h("span","font-size:12px;font-weight:700;color:"+accent+";border:1px solid "+accent+";border-radius:999px;padding:4px 12px",t)); });
+  wrap.appendChild(tg);
+  (extraEls||[]).forEach(function(e){ wrap.appendChild(e); });
+  wrap.appendChild(h("div","height:10px"));
+  wrap.appendChild(bigButton("GO！", accent, onGo));
+  app.appendChild(wrap);
+}
+
+/* ===== 攻撃（あなたが蹴る）===== */
+function renderAttack(){
+  clearTimers(); app.innerHTML=""; ui={};
+  var opp=S.oppTeam.gk, you=myKicker();
+  app.appendChild(navBar(null));
+  app.appendChild(scoreboard());
+  app.appendChild(marksBar());
+  app.appendChild(h("div","text-align:center;font-size:15px;font-weight:800;color:"+S.youTeam.color+";margin:2px 0 2px","▶ あなたのキック（"+S.round+"人目）"));
+  var info=h("div","display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2px");
+  info.appendChild(avatarBox(you.name, you.color, 26));
+  info.appendChild(h("span","font-size:13px;font-weight:700;color:"+C.ink,you.name));
+  info.appendChild(h("span","font-size:11px;color:"+C.gold,stars(you.star)));
+  app.appendChild(info);
+  app.appendChild(h("div","text-align:center;font-size:11px;color:"+C.sub+";margin-bottom:2px","相手GK "+opp.name+"（守備範囲"+opp.守備範囲+"／反応"+opp.反応+"）"));
+  var pitch=buildPitch(opp.color); app.appendChild(pitch);
+  var status=h("div","min-height:92px;margin-top:10px"); ui.status=status; app.appendChild(status);
+  S.shot=null; S.ao=null;
+  ui.onCell=shootAt;
+  requestAnimationFrame(placeKeeperRest);
+  attackStatusReady(you);
+}
+function attackStatusReady(you){
+  var s=ui.status; s.innerHTML="";
+  s.appendChild(h("p","text-align:center;color:"+C.sub+";font-size:13px;margin:0 0 6px;line-height:1.6","狙うコースをタップ！　相手GKがフォームを読んで跳ぶ。"));
+  var mb=h("div","max-width:300px;margin:0 auto");
+  var row=h("div","display:flex;gap:12px"); row.appendChild(miniBar("だまし",you.だまし,C.goal)); row.appendChild(miniBar("キック力",you.キック力,C.ball)); mb.appendChild(row);
+  s.appendChild(mb);
+}
+function shootAt(z){
+  if(S.shot!=null) return;
+  S.shot=z; ui.onCell=null;
+  var opp=S.oppTeam.gk, you=myKicker();
+  var guess=keeperGuess(z, opp, you); S.guess=guess;
+  // マーク表示＋キーパーが跳ぶ
+  ui.cells[z].style.border="2px solid "+S.youTeam.color;
+  diveKeeper(guess);
+  ui.status.innerHTML="";
+  ui.status.appendChild(h("p","text-align:center;color:"+C.ball+";font-weight:800;font-size:17px;margin-top:20px","シュート！"));
+  flyBallTo(z, FLIGHT_MS, function(){
+    var res=resolveSave(z, guess, opp, you, [z]);
+    var goal=!res.saved; S.ao={ goal:goal, res:res };
+    ui.ballInner.style.animation="none";
+    if(goal){ ui.cells[z].style.background="rgba(255,210,63,0.30)"; S.youScore++; goalBurst(z, S.youTeam.color); }
+    else { ui.cells[z].style.background="rgba(53,224,122,0.28)"; if(res.hold) catchEffect(z); else deflectBall(z); }
+    S.youMarks.push(goal);
+    attackResult();
+  });
+}
+function attackResult(){
+  var s=ui.status; s.innerHTML=""; var goal=S.ao.goal;
+  s.appendChild(h("div","text-align:center;font-size:30px;font-weight:900;color:"+(goal?C.ball:C.save), goal?"ゴール！！":"とめられた…"));
+  s.appendChild(h("div","text-align:center;color:"+C.sub+";font-size:12px;margin:2px 0 10px", goal?"相手GKの逆を突いた！":("相手GK："+S.ao.res.reason)));
+  if(S.mode==="kick") s.appendChild(bigButton("次へ", S.youTeam.color, endRound));
+  else s.appendChild(bigButton("相手のキックへ（守る）", S.youTeam.color, enterDefend));
+}
+
+/* ===== 守備（相手が蹴る）===== */
+function startDefend(){
+  clearTimers(); S.turn="defend"; S.phase="ready"; S.dtarget=null; S.candidates=[]; S.committed=null; S.progress=0; S.dout=null;
+  renderDefend();
+}
+function renderDefend(){
+  app.innerHTML=""; ui={};
+  var gk=S.youTeam.gk, kicker=oppKicker();
+  app.appendChild(navBar(null));
+  app.appendChild(scoreboard());
+  app.appendChild(marksBar());
+  app.appendChild(h("div","text-align:center;font-size:15px;font-weight:800;color:"+S.oppTeam.color+";margin:2px 0 2px","▶ 相手のキック（"+S.round+"人目・守る）"));
+  // 相手キッカー情報
+  var info=h("div","display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2px");
+  info.appendChild(avatarBox(kicker.name, kicker.color, 26));
+  info.appendChild(h("span","font-size:13px;font-weight:700;color:"+C.ink,kicker.name));
+  info.appendChild(h("span","font-size:11px;color:"+C.gold,stars(kicker.star)));
+  app.appendChild(info);
+  var pitch=buildPitch(gk.color); app.appendChild(pitch);
+  var status=h("div","min-height:92px;margin-top:10px"); ui.status=status; app.appendChild(status);
+  ui.onCell=commit;
+  requestAnimationFrame(placeKeeperRest);
+  defendStatus();
+}
+function defendStatus(){
+  var s=ui.status; s.innerHTML=""; var gk=S.youTeam.gk;
+  if(S.phase==="ready"){
+    var extra=Math.floor(oppKicker().だまし/33); if(gk.メンタル>=75&&extra>0) extra--; var marks=1+extra;
+    var p=h("p","color:"+C.sub+";font-size:13px;text-align:center;margin:0 0 8px;line-height:1.6");
+    p.innerHTML='助走で<span style="color:'+C.ball+'">読みの光</span>が出る。'+(marks>=2?('<span style="color:'+C.goal+'">まとが'+marks+'つ</span>に散らばる！'):'')+'<br>本命だと思うマスをタップ（蹴る直前でロック）。';
+    s.appendChild(p);
+    s.appendChild(bigButton("受けて立つ", gk.color, startKick));
+  } else if(S.phase==="runup"||S.phase==="strike"){
+    s.appendChild(h("p","text-align:center;color:"+C.ball+";font-weight:800;font-size:17px;margin-top:20px", S.committed==null?"→ フォームを読んでタップ！":"跳んだ！"));
+  } else if(S.phase==="resolved"&&S.dout){
+    var o=S.dout, conceded=!o.saved;
+    s.appendChild(h("div","text-align:center;font-size:30px;font-weight:900;color:"+(o.saved?C.save:C.goal), o.saved?"セーブ！":"きめられた…"));
+    var tag=(o.stat==="だまし"&&!o.saved)?"【だまし】":"";
+    s.appendChild(h("div","color:"+C.ink+";font-size:14px;margin:2px 0 4px;text-align:center", tag+o.reason));
+    s.appendChild(h("div","color:"+C.sub+";font-size:12px;margin-bottom:10px;text-align:center","効いた能力："+o.stat));
+    s.appendChild(bigButton("次へ", S.youTeam.color, endRound));
+  }
+}
+function startKick(){
+  if(S.phase!=="ready") return;
+  var gk=S.youTeam.gk, kicker=oppKicker();
+  var t=Math.floor(Math.random()*ZONES);
+  var extra=Math.floor(kicker.だまし/33); if(gk.メンタル>=75&&extra>0) extra--;
+  var cands=pickCandidates(t, extra); S.dtarget=t; S.candidates=cands;
+  S.committed=null; S.dout=null; S.progress=0; S.phase="runup"; defendStatus();
+  ui.runner.style.opacity="1"; ui.staticBall.style.display="block";
+  var avgc=0; cands.forEach(function(z){ avgc+=cr(z).c; }); avgc/=cands.length;
+  var fromLeft=avgc>=1.5, startX=fromLeft?22:78, emphasis=gk.反応/100*0.55;
+  var t0=performance.now();
+  function loop(now){
+    var p=Math.min(1,(now-t0)/RUNUP_MS); S.progress=p;
+    for(var z=0;z<ZONES;z++){ if(S.committed===z) continue;
+      var a=0; for(var ci=0;ci<cands.length;ci++){ var w=(cands[ci]===t)?(1+emphasis):(1-emphasis*0.6); a=Math.max(a, glowAlpha(z,cands[ci],p,gk.反応)*w); }
+      a=Math.min(0.5,a); ui.cells[z].style.background = a>0.02 ? "rgba(255,210,63,"+a+")":"rgba(255,255,255,0.05)"; }
+    var runP=Math.min(1,p/0.85), kx=startX+(50-startX)*runP, pose=p>=0.82;
+    ui.runner.style.left=kx+"%"; ui.runner.style.transform="translateX(-50%) rotate("+(pose?(fromLeft?14:-14):0)+"deg)";
+    if(p<1) raf=requestAnimationFrame(loop); else defendStrike(t);
+  }
+  raf=requestAnimationFrame(loop);
+}
+function commit(z){
+  if(S.phase!=="runup"||S.progress>=LOCK) return;
+  if(S.committed!=null) ui.cells[S.committed].style.border="1px solid rgba(255,255,255,0.12)";
+  S.committed=z; ui.cells[z].style.border="2px solid "+S.youTeam.gk.color; diveKeeper(z); defendStatus();
+}
+function defendStrike(t){
+  S.phase="strike"; defendStatus(); ui.runner.style.opacity="0";
+  flyBallTo(t, FLIGHT_MS, function(){
+    var res=resolveSave(t, S.committed, S.youTeam.gk, oppKicker(), S.candidates);
+    S.dout=res; S.phase="resolved";
+    if(res.saved) S.saves++; else S.oppScore++;
+    S.oppMarks.push(!res.saved);
+    ui.ballInner.style.animation="none";
+    ui.cells[t].style.background = res.saved ? "rgba(53,224,122,0.28)":"rgba(255,90,95,0.28)";
+    if(res.saved){ if(res.hold) catchEffect(t); else deflectBall(t); } else if(res.power) powerBlast(t);
+    defendStatus();
+  });
+}
+
+/* ---------- ラウンド終了 → 勝敗判定 ---------- */
+function endRound(){
+  if(S.mode!=="vs"){
+    if(S.round<ROUNDS){ beginRound(S.round+1); return; }
+    renderResult(); return;
+  }
+  var decided = S.youScore!==S.oppScore;
+  if(!S.sudden){
+    if(S.round<ROUNDS){ beginRound(S.round+1); return; }
+    if(decided){ renderResult(); return; }
+    S.sudden=true; beginRound(S.round+1); return;   // サドンデス突入
+  }
+  // サドンデス：1ラウンド終わって差がついたら決着
+  if(decided){ renderResult(); return; }
+  beginRound(S.round+1);
+}
+
+/* ---------- 結果 ---------- */
+function rating(n){ return n>=5?"パーフェクト！":n>=4?"すごい！":n>=3?"good":n>=1?"つぎがんばろう":"どんまい"; }
+function renderResult(){
+  clearTimers(); app.innerHTML="";
+  var wrap=h("div","text-align:center;animation:gkIn 340ms ease-out");
+  wrap.appendChild(h("div","color:"+C.sub+";font-size:12px;letter-spacing:3px;margin-bottom:8px","RESULT"));
+  wrap.appendChild(marksBar());
+  if(S.mode==="vs"){
+    var win=S.youScore>S.oppScore;
+    wrap.appendChild(h("div","font-size:46px;font-weight:900;margin:6px 0;color:"+(win?C.save:C.goal), win?"WIN！":"LOSE…"));
+    wrap.appendChild(h("div","font-size:40px;font-weight:900;color:"+C.ink, S.youScore+" - "+S.oppScore));
+    var t=h("div","display:flex;gap:10px;justify-content:center;margin:10px 0 18px;color:"+C.sub+";font-size:13px");
+    t.appendChild(h("span",null,S.youTeam.name)); t.appendChild(h("span",null,"vs")); t.appendChild(h("span",null,S.oppTeam.name)); wrap.appendChild(t);
+  } else {
+    var n = S.mode==="kick" ? S.youScore : S.saves;
+    var lab = S.mode==="kick" ? "ゴール" : "セーブ";
+    var col = S.mode==="kick" ? C.ball : C.save;
+    wrap.appendChild(h("div","font-size:46px;font-weight:900;margin:6px 0;color:"+col, n+" / "+ROUNDS));
+    wrap.appendChild(h("div","font-size:18px;color:"+C.ink+";margin-bottom:4px",lab));
+    wrap.appendChild(h("div","font-size:16px;color:"+C.sub+";margin-bottom:18px",rating(n)));
+  }
+  wrap.appendChild(bigButton("もう一度（モード選択へ）", S.youTeam?S.youTeam.color:"#4bc0e8", function(){ resetGame(); renderModeSelect(); }));
+  app.appendChild(wrap);
+}
+
+renderModeSelect();
+</script>
+</body>
+</html>
