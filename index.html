@@ -511,8 +511,9 @@ function tuDefend(split){
   clearTimers(); app.innerHTML=""; ui={}; TU.busy=false; TU.step=split?3:2;
   tuHead(split?3:2, split?"まとが散らばる":"つぎは止めてみよう");
   app.appendChild(tuBox(split
-    ? "フェイント力がたかい選手は、光が2つに散らばる。\nどちらが本命かは分からない。かんで選ぶしかない。"
+    ? "フェイント力がたかい選手は、光が2つに散らばる。\nどちらが本命かは分からない。かんで選ぶしかない。\n反応85いじょうのキーパーなら、1つ減らせる。"
     : "助走のあいだ、ねらいのマスが黄色く光る。\n光ったマスをタップすると、そこへ跳ぶ。\nぴったりでなくても、守備範囲がひろければとなりも止まる。"));
+  if(!split) app.appendChild(tuBox("この光り方は、キーパーの『反応』でかわる。\n反応がたかいほど 早く・せまく 光って、見分けやすい。\n反応がひくいと おそく・ぼんやり しか光らない。","#ffd23f"));
   tuPitch("#4bc0e8", true);
   var st=h("div","min-height:76px;margin-top:10px"); ui.status=st; app.appendChild(st);
   st.appendChild(h("p","text-align:center;color:"+C.sub+";font-size:13px;margin-top:10px","ボタンを押すと助走がはじまる"));
@@ -566,7 +567,21 @@ function tuDefend(split){
 function tuDone(){
   clearTimers(); app.innerHTML=""; ui={};
   tuHead(3,"これで遊べる！");
-  app.appendChild(tuBox("・端はきまりやすいが、正確性がひくいと枠を外す\n・中央は安全だが、GKに止められやすい\n・フェイント力がたかい選手は、まとが散らばる\n・レベルはイージー／ノーマル／ハードから選べる","#35e07a"));
+  app.appendChild(tuBox("・端はきまりやすいが、正確性がひくいと枠を外す\n・中央は安全だが、GKに止められやすい\n・レベルはイージー／ノーマル／ハードから選べる","#35e07a"));
+  app.appendChild(h("div","font-size:12px;color:"+C.sub+";margin:2px 0 8px","能力がゲームにどう効くか"));
+  var tbl=h("div","display:grid;gap:6px;margin-bottom:12px");
+  [["反応","読みの光が 早く・せまく 光る","#ffd23f"],
+   ["守備範囲","はなれたマスにも手がとどく","#4bc0e8"],
+   ["ハイボール","上だんに強くなる","#4bc0e8"],
+   ["メンタル","押し込まれにくい","#4bc0e8"],
+   ["フェイント力","まと(光)を散らばらせる","#ff5a5f"],
+   ["キック力","読まれても押し込む","#ffd23f"],
+   ["正確性","枠を外しにくい","#35e07a"]].forEach(function(r){
+    var row=h("div","display:flex;gap:8px;align-items:baseline;font-size:12px");
+    row.appendChild(h("span","width:74px;flex:0 0 auto;font-weight:800;color:"+r[2],r[0]));
+    row.appendChild(h("span","color:"+C.ink,r[1])); tbl.appendChild(row);
+  });
+  app.appendChild(tbl);
   var w=h("div","margin-top:6px"); w.appendChild(bigButton("モードを選ぶ","#4bc0e8",goMode)); app.appendChild(w);
 }
 function renderModeSelect(){
