@@ -6,6 +6,9 @@
 <title>PK W杯2026</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* マスの隙間(gap)を押しても反応するよう、当たり判定だけ外側へ広げる。
+     見た目は変えない。隙間6pxの半分ずつを左右上下のマスが受け持つ。 */
+  .tapwide::after { content:""; position:absolute; left:-3px; right:-3px; top:-3px; bottom:-3px; z-index:0; }
   html, body { margin: 0; padding: 0; max-width: 100%; overflow-x: hidden; }
   body {
     min-height: 100vh;
@@ -51,7 +54,7 @@ var REAL_GKS = [
   { name:"エミリアーノ・マルティネス", color:"#79b7e0", star:5, note:"アルゼンチン代表。PKの読みと駆け引きに定評。", メンタル:92, 反応:82, フィジカル:96 },
   { name:"鈴木ザイオン", color:"#2a5ca8", star:4, note:"日本代表。長身で安定感、押し込まれにくい強いフィジカル。", メンタル:82, 反応:86, フィジカル:88 },
   { name:"ウナイ・シモン", color:"#d94a4a", star:5, note:"スペイン代表。全体的に世界トップクラスのバランス型。", メンタル:88, 反応:88, フィジカル:86 },
-  { name:"ヴォジーニャ", color:"#2a8a6b", star:4, note:"カーボベルデ代表。ベテラン。反応は年齢なりだが読みとメンタルが激強。", メンタル:68, 反応:78, フィジカル:96 },
+  { name:"ヴォジーニャ", color:"#2a8a6b", star:4, note:"カーボベルデ代表。ベテラン。体力は落ちたが、読みは世界最高クラス。", メンタル:95, 反応:76, フィジカル:64 },
   { name:"ジョーダン・ピックフォード", color:"#3b4a6b", star:4, note:"イングランド代表(エヴァートン)。反応の速いシュートストッパー。高いボールは苦手、近年メンタル安定。", メンタル:90, 反応:74, フィジカル:80 },
   { name:"K直人", color:"#ffcc33", star:5, note:"あなた（K直人）。数値は自由に調整しよう！", メンタル:85, 反応:85, フィジカル:90 },
 ];
@@ -132,7 +135,7 @@ var FACES = {
   "ククレジャ":"data:image/webp;base64,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"
 };
 
-var COLS=4, ROWS=3, ZONES=COLS*ROWS, RUNUP_MS=1800, FLIGHT_MS=200, LOCK=0.9, ROUNDS=5;
+var COLS=4, ROWS=3, ZONES=COLS*ROWS, RUNUP_MS=1800, FLIGHT_MS=200, LOCK=0.95, ROUNDS=5;
 
 /* ===== 難易度 =====================================================
    枠外率とゾーン配置には手を付けない（隅と中央の釣り合いが崩れるため）。
@@ -461,11 +464,22 @@ function tuBox(text, accent){
   text.split("\n").forEach(function(t){ d.appendChild(h("div",null,t)); });
   return d;
 }
-function tuHead(n,title){
+function roleBadge(role){
+  var isK=(role==="キッカー"), col=isK?"#ffd23f":"#4bc0e8";
+  return h("span","display:inline-block;font-size:11px;font-weight:800;color:"+col
+    +";border:1px solid "+col+";border-radius:999px;padding:2px 10px;background:"+(isK?"rgba(255,210,63,0.10)":"rgba(75,192,232,0.10)"),"【"+role+"】");
+}
+function tuHead(n,title,role){
   var bar=h("div","display:flex;justify-content:space-between;align-items:center;margin-bottom:8px");
   bar.appendChild(h("div","font-size:12px;color:"+C.sub,"遊び方　"+n+" / 3"));
   var sk=navBtn("とばす ›"); sk.addEventListener("click",goMode); bar.appendChild(sk);
   app.appendChild(bar);
+  if(role){
+    var line=h("div","display:flex;align-items:center;gap:8px;margin-bottom:8px");
+    line.appendChild(roleBadge(role));
+    line.appendChild(h("span","font-size:12px;color:"+C.sub, role==="キッカー"?"あなたが蹴る":"あなたが守る"));
+    app.appendChild(line);
+  }
   app.appendChild(h("h1","font-size:20px;margin-bottom:8px",title));
 }
 function tuPitch(color, withGK){
@@ -477,8 +491,8 @@ function tuPitch(color, withGK){
 // --- 1本目：蹴ってみる（GKなし。端は枠を外しやすい） ---
 function tuKick(){
   clearTimers(); app.innerHTML=""; ui={}; TU.step=1;
-  tuHead(1,"まず蹴ってみよう");
-  app.appendChild(tuBox("ゴールは12マス。すきなマスをタップすると、そこへ蹴る。\n端をねらうと決まりやすいけれど、正確性がひくいと枠を外す。"));
+  tuHead(1,"まず蹴ってみよう","キッカー");
+  app.appendChild(tuBox("ゴールは12マス。すきなマスをタップすると、そこへ蹴る。\n端や上をねらうほど決まりやすいが、枠を外しやすい。\n中央は外しにくいが、GKに止められやすい。"));
   tuPitch("#8a8f98", false);
   var st=h("div","min-height:76px;margin-top:10px"); ui.status=st; app.appendChild(st);
   st.appendChild(h("p","text-align:center;color:"+C.ball+";font-weight:800;font-size:16px;margin-top:14px","→ どこかのマスをタップ！"));
@@ -489,7 +503,11 @@ function tuKick(){
     ui.cells[z].style.border="2px solid #4bc0e8";
     if(missWide(kicker,z)){
       flyBallWide(z,function(){ ui.ballInner.style.animation="none"; TU.busy=false;
-        tuResult("枠外…","端はリスクもある。正確性がひくい選手ほど外しやすい。",C.sub,tuKick,"もう一度"); });
+        // 狙った位置によって理由を変える（中央でも外れることがある）
+        var p=cr(z), side=(p.c===0||p.c===3), top=(p.r===0);
+        var why = side ? (top?"上のすみは いちばん外しやすい。":"端はリスクもある。")
+                       : (top?"上をねらうと、ふかしやすい。":"中央でも、正確性がひくいと外すことはある。");
+        tuResult("枠外…", why+"正確性がたかい選手ほど外しにくい。",C.sub,tuKick,"もう一度"); });
     } else {
       flyBallTo(z,FLIGHT_MS,function(){ ui.ballInner.style.animation="none";
         ui.cells[z].style.background="rgba(255,210,63,0.30)"; goalBurst(z,"#4bc0e8"); crowds(true); TU.busy=false;
@@ -509,12 +527,14 @@ function tuSave(){ tuDefend(false); }
 function tuRead(){ tuDefend(true); }
 function tuDefend(split){
   clearTimers(); app.innerHTML=""; ui={}; TU.busy=false; TU.step=split?3:2;
-  tuHead(split?3:2, split?"まとが散らばる":"つぎは止めてみよう");
+  tuHead(split?3:2, split?"まとが散らばる":"つぎは止めてみよう","キーパー");
   app.appendChild(tuBox(split
     ? "フェイント力がたかい選手は、光が2つに散らばる。\nどちらが本命かは分からない。かんで選ぶしかない。\nメンタル85いじょうのキーパーなら、1つ減らせる。"
-    : "助走のあいだ、ねらいのマスが黄色く光る。\n光ったマスをタップすると、そこへ跳ぶ。\nぴったりでなくても、反応がひろければとなりも止まる。"));
+    : "助走のあいだ、ねらいのマスが黄色く光る。\n光ったマスをタップすると、そこへ跳ぶ。\n下のメーターがなくなるまでに決めよう。\nぴったりでなくても、反応がひろければとなりも止まる。"));
   if(!split) app.appendChild(tuBox("この光り方は、キーパーの『メンタル』でかわる。\nメンタルがたかいほど 早く・せまく 光って、見分けやすい。\nメンタルがひくいと おそく・ぼんやり しか光らない。","#ffd23f"));
   tuPitch("#4bc0e8", true);
+  app.appendChild(timerMeter("#4bc0e8"));
+  setMeter(0);
   var st=h("div","min-height:76px;margin-top:10px"); ui.status=st; app.appendChild(st);
   st.appendChild(h("p","text-align:center;color:"+C.sub+";font-size:13px;margin-top:10px","ボタンを押すと助走がはじまる"));
   var gk={メンタル:85,反応:85,フィジカル:90};
@@ -535,6 +555,7 @@ function tuDefend(split){
         var a=0; for(var ci=0;ci<cands.length;ci++) a=Math.max(a, glowAlpha(z2,cands[ci],p,gk.メンタル)*1.5);
         a=Math.min(0.55,a);
         ui.cells[z2].style.background = a>0.02 ? "rgba(255,210,63,"+a+")" : "rgba(255,255,255,0.05)"; }
+      setMeter(p*LOCK);   // 練習では最後まで跳べるので、シュート時に0になるよう換算
       ui.runner.style.left=(22+(50-22)*Math.min(1,p/0.85))+"%";
       if(p<1) raf=requestAnimationFrame(loop);
       else {
@@ -569,18 +590,22 @@ function tuDone(){
   tuHead(3,"これで遊べる！");
   app.appendChild(tuBox("・端はきまりやすいが、正確性がひくいと枠を外す\n・中央は安全だが、GKに止められやすい\n・レベルはイージー／ノーマル／ハードから選べる","#35e07a"));
   app.appendChild(h("div","font-size:12px;color:"+C.sub+";margin:2px 0 8px","能力がゲームにどう効くか"));
-  var tbl=h("div","display:grid;gap:6px;margin-bottom:12px");
-  [["メンタル／読み","フェイントを見やぶる。光が早く・せまくなる","#ffd23f"],
-   ["反応","ズレても手がのびて、となりも止まる","#4bc0e8"],
-      ["フィジカル","強いシュートを押し返す","#4bc0e8"],
-   ["フェイント力","まと(光)を散らばらせる","#ff5a5f"],
-   ["キック力","読まれても押し込む","#ffd23f"],
-   ["正確性","枠を外しにくい","#35e07a"]].forEach(function(r){
-    var row=h("div","display:flex;gap:8px;align-items:baseline;font-size:12px");
-    row.appendChild(h("span","width:92px;flex:0 0 auto;font-weight:800;color:"+r[2],r[0]));
-    row.appendChild(h("span","color:"+C.ink,r[1])); tbl.appendChild(row);
+  [["キーパー",[["メンタル／読み","フェイントを見やぶる。光が早く・せまくなる"],
+                ["反応","ズレても手がのびて、となりも止まる"],
+                ["フィジカル","強いシュートを押し返す"]]],
+   ["キッカー",[["フェイント力","まと(光)を散らばらせる"],
+                ["キック力","読まれても押し込む"],
+                ["正確性","枠を外しにくい"]]]].forEach(function(grp){
+    var col=(grp[0]==="キッカー")?"#ffd23f":"#4bc0e8";
+    var hd=h("div","margin:0 0 5px"); hd.appendChild(roleBadge(grp[0])); app.appendChild(hd);
+    var tbl=h("div","display:grid;gap:6px;margin:0 0 10px 2px");
+    grp[1].forEach(function(r){
+      var row=h("div","display:flex;gap:8px;align-items:baseline;font-size:12px");
+      row.appendChild(h("span","width:92px;flex:0 0 auto;font-weight:800;color:"+col,r[0]));
+      row.appendChild(h("span","color:"+C.ink,r[1])); tbl.appendChild(row);
+    });
+    app.appendChild(tbl);
   });
-  app.appendChild(tbl);
   var w=h("div","margin-top:6px"); w.appendChild(bigButton("モードを選ぶ","#4bc0e8",goMode)); app.appendChild(w);
 }
 function renderModeSelect(){
@@ -878,7 +903,7 @@ function buildPitch(keeperColor){
   var grid=h("div","position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px"); ui.grid=grid; ui.cells=[];
   for(var z=0;z<ZONES;z++){ (function(z){
     var cell=h("button","position:relative;aspect-ratio:2.1/1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:6px;cursor:default;touch-action:manipulation;display:flex;align-items:center;justify-content:center;transition:background 90ms,border-color 120ms");
-    cell.className="cell";
+    cell.className="cell tapwide";
     cell.addEventListener("pointerdown", function(){ if(ui.onCell) ui.onCell(z); });
     grid.appendChild(cell); ui.cells.push(cell);
   })(z); }
@@ -1119,7 +1144,7 @@ function attackResult(){
 
 /* ===== 守備（相手が蹴る）===== */
 function startDefend(){
-  clearTimers(); S.turn="defend"; S.phase="ready"; S.dtarget=null; S.candidates=[]; S.committed=null; S.progress=0; S.dout=null;
+  clearTimers(); S.turn="defend"; S.phase="ready"; S.dtarget=null; S.candidates=[]; S.committed=null; S.progress=0; S.dout=null; S.lockShown=false; S.lateWarned=false;
   renderDefend();
 }
 function renderDefend(){
@@ -1136,10 +1161,35 @@ function renderDefend(){
   info.appendChild(h("span","font-size:11px;color:"+C.gold,stars(kicker.star)));
   app.appendChild(info);
   var pitch=buildPitch(gk.color); app.appendChild(pitch);
+  app.appendChild(timerMeter(gk.color));
   var status=h("div","min-height:92px;margin-top:10px"); ui.status=status; app.appendChild(status);
   ui.onCell=commit;
   requestAnimationFrame(placeKeeperRest);
   defendStatus();
+}
+// 跳べる残り時間のメーター。LOCK(90%)で跳べなくなるので、そこに印を出す
+function timerMeter(color){
+  var wrap=h("div","margin:8px 2px 0");
+  var track=h("div","position:relative;height:10px;background:rgba(255,255,255,0.10);border-radius:6px;overflow:hidden");
+  var fill=h("div","position:absolute;left:0;top:0;bottom:0;width:100%;background:"+color+";border-radius:6px;transition:background 120ms");
+  track.appendChild(fill);
+  wrap.appendChild(track);
+  var lab=h("div","display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:"+C.sub);
+  lab.appendChild(h("span",null,"跳べる時間"));
+  var right=h("span",null,"のこり"); ui.meterLabel=right; lab.appendChild(right);
+  wrap.appendChild(lab);
+  ui.meter=fill; ui.meterWrap=wrap;
+  return wrap;
+}
+function setMeter(p){
+  if(!ui.meter) return;
+  var left=Math.max(0,1-p/LOCK);            // LOCKで0になる
+  ui.meter.style.width=(left*100)+"%";
+  ui.meter.style.background = left>0.5 ? "#35e07a" : (left>0.2 ? "#ffd23f" : "#ff5a5f");
+  if(ui.meterLabel){
+    ui.meterLabel.textContent = (left<=0) ? "しめきり！" : "のこり "+Math.ceil(left*100)+"%";
+    ui.meterLabel.style.color = (left<=0) ? "#ff5a5f" : C.sub;
+  }
 }
 function defendStatus(){
   var s=ui.status; s.innerHTML=""; var gk=S.youTeam.gk;
@@ -1150,7 +1200,9 @@ function defendStatus(){
     s.appendChild(p);
     s.appendChild(bigButton("受けて立つ", gk.color, startKick));
   } else if(S.phase==="runup"||S.phase==="strike"){
-    s.appendChild(h("p","text-align:center;color:"+C.ball+";font-weight:800;font-size:17px;margin-top:20px", S.committed==null?"→ フォームを読んでタップ！":"跳んだ！"));
+    var late = (S.committed==null && S.progress>=LOCK);
+    s.appendChild(h("p","text-align:center;color:"+(late?C.goal:C.ball)+";font-weight:800;font-size:17px;margin-top:20px",
+      S.committed!=null?"跳んだ！":(late?"間に合わなかった…":"→ フォームを読んでタップ！")));
   } else if(S.phase==="resolved"&&S.dout){
     var o=S.dout, conceded=!o.saved;
     s.appendChild(h("div","text-align:center;font-size:30px;font-weight:900;color:"+(o.saved?C.save:C.goal), o.saved?(o.wide?"枠外！":"セーブ！"):"きめられた…"));
@@ -1166,7 +1218,10 @@ function startKick(){
   var t=Math.floor(Math.random()*ZONES);
   var extra=Math.max(0, candidateExtra(kicker, gk)+LV().candAdj);
   var cands=pickCandidates(t, extra); S.dtarget=t; S.candidates=cands;
-  S.committed=null; S.dout=null; S.progress=0; S.phase="runup"; defendStatus(); SFX.whistle();
+  S.committed=null; S.dout=null; S.progress=0; S.lockShown=false; S.lateWarned=false; S.phase="runup";
+  if(ui.frame) ui.frame.style.borderColor=C.line;
+  setMeter(0);
+  defendStatus(); SFX.whistle();
   ui.runner.style.opacity="1"; ui.staticBall.style.display="block";
   var avgc=0; cands.forEach(function(z){ avgc+=cr(z).c; }); avgc/=cands.length;
   var fromLeft=avgc>=1.5, startX=fromLeft?22:78, emphasis=0;
@@ -1176,14 +1231,21 @@ function startKick(){
     for(var z=0;z<ZONES;z++){ if(S.committed===z) continue;
       var a=0; for(var ci=0;ci<cands.length;ci++){ var w=(cands[ci]===t)?(1+emphasis):(1-emphasis*0.6); a=Math.max(a, glowAlpha(z,cands[ci],p,gk.メンタル)*w); }
       a=Math.min(0.5,a); ui.cells[z].style.background = a>0.02 ? "rgba(255,210,63,"+a+")":"rgba(255,255,255,0.05)"; }
+    setMeter(p);
     var runP=Math.min(1,p/0.85), kx=startX+(50-startX)*runP, pose=p>=0.82;
     ui.runner.style.left=kx+"%"; ui.runner.style.transform="translateX(-50%) rotate("+(pose?(fromLeft?14:-14):0)+"deg)";
+    // 締切(LOCK)を過ぎたら枠を赤くして「もう跳べない」と分かるようにする
+    if(p>=LOCK && !S.lockShown){ S.lockShown=true;
+      ui.frame.style.borderColor=(S.committed==null)?C.goal:C.line;
+      if(S.committed==null) defendStatus();
+    }
     if(p<1) raf=requestAnimationFrame(loop); else defendStrike(t);
   }
   raf=requestAnimationFrame(loop);
 }
 function commit(z){
-  if(S.phase!=="runup"||S.progress>=LOCK) return;
+  if(S.phase!=="runup") return;
+  if(S.progress>=LOCK){ if(!S.lateWarned){ S.lateWarned=true; defendStatus(); } return; }
   if(S.committed!=null) ui.cells[S.committed].style.border="1px solid rgba(255,255,255,0.12)";
   S.committed=z; ui.cells[z].style.border="2px solid "+S.youTeam.gk.color; diveKeeper(z); defendStatus();
 }
