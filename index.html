@@ -684,7 +684,7 @@ function tuKick(){
   clearTimers(); app.innerHTML=""; ui={}; TU.step=1; TU.busy=false;
   tuHead(1,"まず蹴ってみよう","キッカー");
   app.appendChild(tuBox("ゴールは12マス。すきなマスをタップすると、そこへ蹴る。\nコースを決めたら、下にパワーメーターが出る。\n印がうごくので、みどりの帯でタップして止めよう（まん中の金いろが会心！）。\n帯を外して止めると、力がよわくなって枠を外しやすい。"));
-  app.appendChild(tuBox("本番では、帯の広さと印の速さが選手やコースでかわる。\n正確性がたかい選手ほど、みどりの帯が広い（止めやすい）。\nキック力がたかい選手や、むずかしいコース（すみ・上）ほど、印が速い（むずかしい）。","#ffd23f"));
+  app.appendChild(tuBox("本番では、帯の広さと印の速さが選手やコースでかわる。\nうまい選手（正確性がたかい）ほど、帯が広く印もゆっくり＝かんたん。\n正確性がひくい選手や、むずかしいコース（すみ・上）ほど、帯がせまく印が速い＝むずかしい。","#ffd23f"));
   tuPitch("#8a8f98", false);
   var st=h("div","min-height:76px;margin-top:10px"); ui.status=st; app.appendChild(st);
   st.appendChild(h("p","text-align:center;color:"+C.ball+";font-weight:800;font-size:16px;margin-top:14px","→ どこかのマスをタップ！"));
@@ -1510,19 +1510,20 @@ function shootAt(z){
   ui.cells[z].style.border="2px solid "+S.youTeam.color;
   showPowerMeter(z, you);
 }
-/* ジャスト帯の広さ（バー幅にたいする片側割合）。正確性が高い／中央コースほど広い。 */
+/* ジャスト帯の広さ（バー幅にたいする片側割合）。正確性が高い（うまい）／中央コースほど広い。 */
 function shotBand(z, you){
   var acc=(you.正確性!=null?you.正確性:60), ef=edgeFactor(z);
-  var w=(0.15+(acc/100)*0.22)*(1-ef*0.35);
+  var w=(0.12+(acc/100)*0.30)*(1-ef*0.35);              // うまい選手ほど帯が広い（差を大きめに）
   w*=(LV().key==="hard"?0.85:(LV().key==="easy"?1.3:1));
-  return Math.max(0.11, Math.min(0.44, w));
+  return Math.max(0.09, Math.min(0.44, w));
 }
-/* 印の往復スピード（毎秒の往復数めやす）。キック力が高い／端コース／ハードほど速い。 */
+/* 印の往復スピード（毎秒の往復数めやす）。正確性が低い（へた）／端コース／ハードほど速い。
+   ＝うまい選手ほどゆっくりで簡単、雑魚ほど速くて難しい。キック力はシュート威力の方に効く。 */
 function shotSpeed(z, you){
-  var ef=edgeFactor(z);
-  var cyc=0.38+(you.キック力/100)*0.34+ef*0.30;
+  var acc=(you.正確性!=null?you.正確性:60), ef=edgeFactor(z);
+  var cyc=0.40+(1-acc/100)*0.70+ef*0.35;                // 正確性が低いほど速い（差を大きく）
   cyc*=(LV().key==="hard"?1.2:(LV().key==="easy"?0.75:1));
-  return cyc;
+  return Math.min(1.6, cyc);
 }
 /* パワーメーター（みんなのゴルフ式のジャストミート）。
    コースを決めたあと、印が左右に往復。タップで止めた位置で威力と精度が決まる。 */
