@@ -1059,13 +1059,21 @@ function chooseSubMode(){
   wb.appendChild(h("p",dst,"失敗するまでエンドレス！　相手はだんだん強くなる。何連続"+(S.mode==="kick"?"ゴール":"セーブ")+"できるかな？"));
   app.appendChild(wb);
 }
-/* 連続チャレンジの相手：連続が伸びるほど★（強さ）が上がる */
+/* 連続チャレンジの相手：連続が伸びるほど★（強さ）が上がる。
+   上位は★4-5のブレンドにして、少ない上位選手だけが出続けないようにする。
+   キッカー（プラチナ20）はゆっくり、キーパー（プラチナ10）は速めに上げる。 */
 function endlessTierStars(streak){
-  if(streak<3)  return [1,2];
-  if(streak<6)  return [3];
-  if(streak<9)  return [4];
-  if(streak<12) return [4,5];
-  return [5];
+  if(S.mode==="keep"){                 // キーパー：プラチナ10
+    if(streak<3)  return [1,2];
+    if(streak<6)  return [2,3];
+    if(streak<8)  return [3,4];
+    return [4,5];
+  }
+  // キッカー：プラチナ20。20本めまで少しずつ、上位はGK6人（★4-5）で変化をつける
+  if(streak<5)   return [1,2];
+  if(streak<10)  return [2,3];
+  if(streak<15)  return [3,4];
+  return [4,5];
 }
 function pickByStar(pool, stars){
   var f=pool.filter(function(m){ return stars.indexOf(m.star)>=0; });
@@ -1453,7 +1461,18 @@ function marksBar(){
 function beginRound(r){ clearTimers(); S.round=r; if(S.endless && r>1) endlessSetOpp(); if(S.mode==="keep") enterDefend(); else enterAttack(); }
 function goAttack(){ decisiveOverlay("attack", renderAttack); }
 function goDefend(){ decisiveOverlay("defend", startDefend); }
-function enterAttack(){ S.turn="attack"; if(S.intro){ var you=myKicker(); playerIntro(you, (S.endless?(S.round+"本目（あなた）"):("第"+S.round+"キッカー（あなた）")), kickerTags(you), [kickerMiniEls(you)], S.youTeam.color, goAttack); } else goAttack(); }
+function enterAttack(){
+  S.turn="attack";
+  if(!S.intro){ goAttack(); return; }
+  if(S.endless){
+    // 連続チャレンジは自分のキッカーが固定なので、毎回入れ替わる相手GKを紹介する
+    var gk=S.oppTeam.gk, mini=h("div","max-width:300px;margin:0 auto"); mini.appendChild(statBars(gk, gk.color));
+    playerIntro(gk, S.round+"本目　相手GK", keeperTags(gk), [mini], gk.color, goAttack);
+  } else {
+    var you=myKicker();
+    playerIntro(you, "第"+S.round+"キッカー（あなた）", kickerTags(you), [kickerMiniEls(you)], S.youTeam.color, goAttack);
+  }
+}
 function enterDefend(){ if(S.intro){ var k=oppKicker(); playerIntro(k, (S.endless?(S.round+"本目（相手）"):("第"+S.round+"キッカー（相手）")), kickerTags(k), marksWarnEls(k), S.oppTeam.color, goDefend); } else goDefend(); }
 function kickerMiniEls(k){ var mb=h("div","max-width:300px;margin:0 auto"); mb.appendChild(kickerBars(k)); return mb; }
 function marksWarnEls(k){
