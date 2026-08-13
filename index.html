@@ -433,8 +433,8 @@ var Rec={
     return { v:1,
       prefs:{ level:"normal", sound:true },
       vs:{ play:0, win:0, lose:0 },
-      kick:{ play:0, best:0 },
-      keep:{ play:0, best:0 },
+      kick:{ play:0, best:0, streakBest:0 },
+      keep:{ play:0, best:0, streakBest:0 },
       streak:{ best:0 },
       medals:{ bronze:0, silver:0, gold:0, platinum:0 },
       trophies:{ wins:{easy:0,normal:0,hard:0}, hardStreak:0, hardBest:0, renpa2:0, renpa3:0, deepest:-1 },
@@ -459,6 +459,9 @@ var Rec={
     t.hardStreak=t.hardStreak||0; t.hardBest=t.hardBest||0;
     t.renpa2=t.renpa2||0; t.renpa3=t.renpa3||0;
     t.deepest=(typeof t.deepest==="number")?t.deepest:-1;
+    // キッカー／キーパーの連続チャレンジ記録の欠けを補う
+    if(this.data.kick && this.data.kick.streakBest==null) this.data.kick.streakBest=0;
+    if(this.data.keep && this.data.keep.streakBest==null) this.data.keep.streakBest=0;
     return this.data;
   },
   save:function(){
@@ -483,10 +486,12 @@ var Rec={
       if(st.youScore>st.oppScore) d.vs.win++; else d.vs.lose++;
     } else if(st.mode==="kick"){
       d.kick.play++;
-      if(st.youScore>d.kick.best) d.kick.best=st.youScore;
+      if(st.endless){ if(st.youScore>(d.kick.streakBest||0)) d.kick.streakBest=st.youScore; }
+      else if(st.youScore>d.kick.best) d.kick.best=st.youScore;
     } else if(st.mode==="keep"){
       d.keep.play++;
-      if(st.saves>d.keep.best) d.keep.best=st.saves;
+      if(st.endless){ if(st.saves>(d.keep.streakBest||0)) d.keep.streakBest=st.saves; }
+      else if(st.saves>d.keep.best) d.keep.best=st.saves;
     }
     // メダルは「守る場面がある」モードだけ（対戦・キーパー）
     if(st.mode==="vs" || st.mode==="keep"){
@@ -503,7 +508,7 @@ var Rec={
 var S={};
 var introPref=true;   // 登場演出は常にあり（トグルは廃止）
 function resetGame(){
-  S={ screen:"mode", mode:"vs", intro:introPref, youTeam:null, oppTeam:null, round:1, youScore:0, oppScore:0, saves:0, streak:0, bestStreak:0, sudden:false,
+  S={ screen:"mode", mode:"vs", intro:introPref, endless:false, youTeam:null, oppTeam:null, round:1, youScore:0, oppScore:0, saves:0, streak:0, bestStreak:0, sudden:false,
       youMarks:[], oppMarks:[], turn:"attack", phase:"", shot:null, guess:null, ao:null,
       dtarget:null, candidates:[], committed:null, progress:0, dout:null };
 }
@@ -831,7 +836,7 @@ function renderModeSelect(){
     var card=h("button","text-align:left;background:rgba(255,255,255,0.04);border:1.5px solid "+m[3]+";border-radius:14px;padding:16px;color:"+C.ink+";cursor:pointer;touch-action:manipulation;width:100%");
     card.appendChild(h("div","font-size:19px;font-weight:900;color:"+m[3],m[1]));
     card.appendChild(h("div","font-size:13px;color:"+C.sub+";margin-top:4px",m[2]));
-    card.addEventListener("click", function(){ S.mode=m[0]; beginSelection(); });
+    card.addEventListener("click", function(){ S.mode=m[0]; if(m[0]==="vs"){ S.endless=false; beginSelection(); } else chooseSubMode(); });
     list.appendChild(card);
   });
   app.appendChild(list);
@@ -903,8 +908,10 @@ function renderRecords(){
   app.appendChild(vc);
   // キッカー／キーパー
   var kc=card("キッカー／キーパーモード");
-  kc.appendChild(row("キッカー さいこう得点", d.kick.best+" / "+ROUNDS+"（"+d.kick.play+"回）", C.ball));
-  kc.appendChild(row("キーパー さいこうセーブ", d.keep.best+" / "+ROUNDS+"（"+d.keep.play+"回）", C.save));
+  kc.appendChild(row("キッカー さいこう得点（5本）", d.kick.best+" / "+ROUNDS+"（"+d.kick.play+"回）", C.ball));
+  kc.appendChild(row("キーパー さいこうセーブ（5本）", d.keep.best+" / "+ROUNDS+"（"+d.keep.play+"回）", C.save));
+  kc.appendChild(row("🔥 連続ゴール さいこう", (d.kick.streakBest||0)+" 連続", C.ball));
+  kc.appendChild(row("🔥 連続セーブ さいこう", (d.keep.streakBest||0)+" 連続", C.save));
   app.appendChild(kc);
   // トロフィー（トーナメント実装後に中身が入る）
   var tc=card("トロフィー（トーナメント優勝）");
@@ -1009,6 +1016,48 @@ function teamCard(tm, onClick){
   card.addEventListener("click", onClick); return card;
 }
 
+/* ---------- 遊び方えらび（5本 / 連続チャレンジ）---------- */
+function chooseSubMode(){
+  clearTimers(); app.innerHTML=""; TOUR=null;
+  app.appendChild(navBar(renderModeSelect));
+  header(S.mode==="kick"?"キッカーモード":"キーパーモード","あそび方をえらぶ");
+  var dst="color:"+C.sub+";font-size:12px;margin:6px 2px 0;line-height:1.6";
+  var wa=h("div","max-width:340px;margin:0 auto");
+  wa.appendChild(bigButton("⚽ 5本モード","#4bc0e8",function(){ S.endless=false; beginSelection(); }));
+  wa.appendChild(h("p",dst,"5本"+(S.mode==="kick"?"蹴って合計得点":"守って合計セーブ")+"をきそう。きろくに残る。"));
+  app.appendChild(wa);
+  var wb=h("div","max-width:340px;margin:18px auto 0");
+  wb.appendChild(bigButton("🔥 連続チャレンジ","#ff5a5f",function(){ S.endless=true; beginSelection(); }));
+  wb.appendChild(h("p",dst,"失敗するまでエンドレス！　相手はだんだん強くなる。何連続"+(S.mode==="kick"?"ゴール":"セーブ")+"できるかな？"));
+  app.appendChild(wb);
+}
+/* 連続チャレンジの相手：連続が伸びるほど★（強さ）が上がる */
+function endlessTierStars(streak){
+  if(streak<3)  return [1,2];
+  if(streak<6)  return [3];
+  if(streak<9)  return [4];
+  if(streak<12) return [4,5];
+  return [5];
+}
+function pickByStar(pool, stars){
+  var f=pool.filter(function(m){ return stars.indexOf(m.star)>=0; });
+  if(!f.length) f=pool.slice();
+  return f[Math.floor(Math.random()*f.length)];
+}
+// いまの連続数にあわせて、このラウンドの相手を1人つくる
+function endlessSetOpp(){
+  var streak=(S.mode==="kick")?S.youScore:S.saves, stars=endlessTierStars(streak);
+  if(S.mode==="kick"){ var gk=pickByStar(KEEPERS, stars); S.oppTeam={ name:"れんぞくの相手", color:gk.color, gk:gk, kickers:[] }; }
+  else { var k=pickByStar(KICKERS, stars); S.oppTeam={ name:"れんぞくの相手", color:k.color, gk:ghostGK(), kickers:[k] }; }
+}
+// 自分の側だけ決めたら、連続チャレンジ開始
+function startEndless(){
+  S.round=1; S.youScore=0; S.oppScore=0; S.saves=0; S.streak=0; S.bestStreak=0; S.sudden=false; S.youMarks=[]; S.oppMarks=[];
+  if(S.mode==="kick") S.youTeam={ name:"あなた", color:(S.pYouKickers[0]?S.pYouKickers[0].color:"#ffd23f"), gk:ghostGK(), kickers:S.pYouKickers };
+  else S.youTeam={ name:"あなた", color:S.pYouGK.color, gk:S.pYouGK, kickers:[] };
+  endlessSetOpp();
+  renderMatchIntro();
+}
 /* ---------- 選択フロー（モード別）---------- */
 function beginSelection(){
   S.youTeam=null; S.oppTeam=null; S.round=1; S.youScore=0; S.oppScore=0; S.saves=0; S.streak=0; S.bestStreak=0; S.sudden=false; S.youMarks=[]; S.oppMarks=[];
@@ -1016,18 +1065,21 @@ function beginSelection(){
   else if(S.mode==="kick") selKickYou();
   else selVsYou();
 }
-function backToOpp(){ if(S.mode==="keep") selKeepOpp(); else if(S.mode==="kick") selKickOpp(); else selVsOpp(); }
+function backToOpp(){
+  if(S.endless){ if(S.mode==="kick") selKickYou(); else selKeepYou(); return; }   // 連続は相手選択が無いので自分の側えらびへ戻る
+  if(S.mode==="keep") selKeepOpp(); else if(S.mode==="kick") selKickOpp(); else selVsOpp();
+}
 
-// キーパーモード：自分GK → 相手キッカー5人
-function selKeepYou(){ renderPickGK({ title:"自分のGKを選ぶ", sub:"このGKで守る", back:renderModeSelect, onPick:function(gk){ S.pYouGK=gk; selKeepOpp(); } }); }
+// キーパーモード：自分GK →（5本なら相手キッカー5人／連続ならそのまま開始）
+function selKeepYou(){ renderPickGK({ title:"自分のGKを選ぶ", sub:"このGKで守る", back:S.endless?chooseSubMode:renderModeSelect, onPick:function(gk){ S.pYouGK=gk; if(S.endless) startEndless(); else selKeepOpp(); } }); }
 function selKeepOpp(){
   renderPickOpp({ title:"相手を選ぶ", sub:"蹴ってくる5人（おまかせ or 個別）", back:selKeepYou,
     onRandom:function(){ var ks=randKickers(5); finishSel({ youGK:S.pYouGK, oppKickers:ks, oppName:"おまかせ", oppColor:ks[0].color }); },
     individual:function(){ renderPickKickers({ title:"相手キッカー5人を選ぶ", sub:"蹴ってくる順に5人", back:selKeepOpp,
       onDone:function(ks){ finishSel({ youGK:S.pYouGK, oppKickers:ks, oppName:"相手", oppColor:ks[0].color }); } }); } });
 }
-// キッカーモード：自分キッカー5人 → 相手GK
-function selKickYou(){ renderPickKickersMode({ title:"自分のキッカー5人", sub:"おまかせ or 自分で選ぶ", back:renderModeSelect, onDone:function(ks){ S.pYouKickers=ks; selKickOpp(); } }); }
+// キッカーモード：自分キッカー5人 →（5本なら相手GK／連続ならそのまま開始）
+function selKickYou(){ renderPickKickersMode({ title:"自分のキッカー5人", sub:"おまかせ or 自分で選ぶ", back:S.endless?chooseSubMode:renderModeSelect, onDone:function(ks){ S.pYouKickers=ks; if(S.endless) startEndless(); else selKickOpp(); } }); }
 function selKickOpp(){
   renderPickOpp({ title:"相手を選ぶ", sub:"点を取る相手GK（おまかせ or 個別）", back:selKickYou,
     onRandom:function(){ var g=randGK(); finishSel({ youKickers:S.pYouKickers, oppGK:g, oppName:"おまかせ", oppColor:g.color }); },
@@ -1156,9 +1208,10 @@ function scoreboard(){
   var bar=h("div","display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px");
   bar.appendChild(teamDot(S.youTeam));
   var sc=h("div","text-align:center;min-width:82px");
-  var main = S.mode==="vs" ? (S.youScore+" - "+S.oppScore) : S.mode==="kick" ? ("得点 "+S.youScore) : ("セーブ "+S.saves);
-  sc.appendChild(h("div","font-size:22px;font-weight:900;color:"+C.ink, main));
-  sc.appendChild(h("div","font-size:11px;color:"+C.sub, S.sudden?"延長":(S.round+" / "+ROUNDS)));
+  var n=(S.mode==="kick")?S.youScore:S.saves;
+  var main = S.mode==="vs" ? (S.youScore+" - "+S.oppScore) : S.endless ? (n+" れんぞく") : S.mode==="kick" ? ("得点 "+S.youScore) : ("セーブ "+S.saves);
+  sc.appendChild(h("div","font-size:22px;font-weight:900;color:"+(S.endless?C.gold:C.ink), main));
+  sc.appendChild(h("div","font-size:11px;color:"+C.sub, S.sudden?"延長":S.endless?(S.round+"本目"):(S.round+" / "+ROUNDS)));
   bar.appendChild(sc);
   bar.appendChild(teamDot(S.oppTeam));
   return bar;
@@ -1333,15 +1386,15 @@ function marksBar(){
     box.appendChild(marksRow(S.youTeam.name, S.youTeam.color, S.youMarks, false));
     box.appendChild(marksRow(S.oppTeam.name, S.oppTeam.color, S.oppMarks, false));
   } else if(S.mode==="kick"){
-    box.appendChild(marksRow("あなた", C.ball, S.youMarks, false));
+    box.appendChild(marksRow("あなた", C.ball, S.endless?S.youMarks.slice(-12):S.youMarks, false));
   } else {
-    box.appendChild(marksRow(S.oppTeam.name, S.oppTeam.color, S.oppMarks, false));
+    box.appendChild(marksRow(S.oppTeam.name, S.oppTeam.color, S.endless?S.oppMarks.slice(-12):S.oppMarks, false));
   }
   return box;
 }
 
 /* ---------- ラウンド進行 ---------- */
-function beginRound(r){ clearTimers(); S.round=r; if(S.mode==="keep") enterDefend(); else enterAttack(); }
+function beginRound(r){ clearTimers(); S.round=r; if(S.endless && r>1) endlessSetOpp(); if(S.mode==="keep") enterDefend(); else enterAttack(); }
 function goAttack(){ decisiveOverlay("attack", renderAttack); }
 function goDefend(){ decisiveOverlay("defend", startDefend); }
 function enterAttack(){ S.turn="attack"; if(S.intro){ var you=myKicker(); playerIntro(you, "第"+S.round+"キッカー（あなた）", kickerTags(you), [kickerMiniEls(you)], S.youTeam.color, goAttack); } else goAttack(); }
@@ -1515,7 +1568,7 @@ function attackResult(){
   var sub = goal?attackReason():(wide?pick(["ねらいすぎた…　枠の外へ…","力んだ…　大きく外れた…"]):("相手GK："+S.ao.res.reason));
   s.appendChild(h("div","text-align:center;font-size:30px;font-weight:900;color:"+col, big));
   s.appendChild(h("div","text-align:center;color:"+C.sub+";font-size:12px;margin:2px 0 10px", sub));
-  if(S.mode==="kick") s.appendChild(bigButton("次へ", S.youTeam.color, endRound));
+  if(S.mode==="kick") s.appendChild(bigButton((S.endless&&!goal)?"けっかを見る":"次へ", S.youTeam.color, endRound));
   else if(decidedNow()) s.appendChild(bigButton("結果を見る", S.youTeam.color, renderResult));
   else s.appendChild(bigButton("相手のキックへ（守る）", S.youTeam.color, enterDefend));
 }
@@ -1588,7 +1641,7 @@ function defendStatus(){
     var tag=(o.stat==="フェイント力"&&!o.saved)?"【フェイント】":"";
     s.appendChild(h("div","color:"+C.ink+";font-size:14px;margin:2px 0 4px;text-align:center", tag+o.reason));
     s.appendChild(h("div","color:"+C.sub+";font-size:12px;margin-bottom:10px;text-align:center","効いた能力："+o.stat));
-    s.appendChild(bigButton("次へ", S.youTeam.color, endRound));
+    s.appendChild(bigButton((S.endless&&conceded)?"けっかを見る":"次へ", S.youTeam.color, endRound));
   }
 }
 function startKick(){
@@ -1654,6 +1707,13 @@ function defendStrike(t){
 /* ---------- ラウンド終了 → 勝敗判定 ---------- */
 function endRound(){
   if(S.mode!=="vs"){
+    if(S.endless){
+      // 直前の1本が失敗（キッカー＝決められず／キーパー＝決められた）なら終了。成功ならエンドレス続行。
+      var failed=(S.mode==="kick") ? (S.youMarks[S.youMarks.length-1]===false)
+                                   : (S.oppMarks[S.oppMarks.length-1]===true);
+      if(failed){ renderResult(); return; }
+      beginRound(S.round+1); return;
+    }
     if(S.round<ROUNDS){ beginRound(S.round+1); return; }
     renderResult(); return;
   }
@@ -1743,6 +1803,7 @@ function decidedNow(){
 function rating(n){ return n>=5?"パーフェクト！":n>=4?"すごい！":n>=3?"good":n>=1?"つぎがんばろう":"どんまい"; }
 function renderResult(){
   clearTimers(); app.innerHTML="";
+  var prevKickStreak=Rec.data.kick.streakBest||0, prevKeepStreak=Rec.data.keep.streakBest||0;
   var gotMedal=Rec.finish(S);   // ここで通算成績・メダルを保存する
   var wrap=h("div","text-align:center;animation:gkIn 340ms ease-out");
   wrap.appendChild(h("div","color:"+C.sub+";font-size:12px;letter-spacing:3px;margin-bottom:8px","RESULT"));
@@ -1755,11 +1816,21 @@ function renderResult(){
     t.appendChild(h("span",null,S.youTeam.name)); t.appendChild(h("span",null,"vs")); t.appendChild(h("span",null,S.oppTeam.name)); wrap.appendChild(t);
   } else {
     var n = S.mode==="kick" ? S.youScore : S.saves;
-    var lab = S.mode==="kick" ? "ゴール" : "セーブ";
     var col = S.mode==="kick" ? C.ball : C.save;
-    wrap.appendChild(h("div","font-size:46px;font-weight:900;margin:6px 0;color:"+col, n+" / "+ROUNDS));
-    wrap.appendChild(h("div","font-size:18px;color:"+C.ink+";margin-bottom:4px",lab));
-    wrap.appendChild(h("div","font-size:16px;color:"+C.sub+";margin-bottom:18px",rating(n)));
+    if(S.endless){
+      var elab = S.mode==="kick" ? "連続ゴール" : "連続セーブ";
+      var prev = S.mode==="kick" ? prevKickStreak : prevKeepStreak;
+      var best = S.mode==="kick" ? (Rec.data.kick.streakBest||0) : (Rec.data.keep.streakBest||0);
+      wrap.appendChild(h("div","font-size:46px;font-weight:900;margin:6px 0;color:"+C.gold, n+" 連続！"));
+      wrap.appendChild(h("div","font-size:18px;color:"+C.ink+";margin-bottom:4px",elab));
+      if(n>prev && n>0) wrap.appendChild(h("div","font-size:17px;font-weight:900;color:"+C.gold+";margin-bottom:12px","🎉 しんきろく！"));
+      else wrap.appendChild(h("div","font-size:13px;color:"+C.sub+";margin-bottom:12px","じこベスト "+best+" 連続"));
+    } else {
+      var lab = S.mode==="kick" ? "ゴール" : "セーブ";
+      wrap.appendChild(h("div","font-size:46px;font-weight:900;margin:6px 0;color:"+col, n+" / "+ROUNDS));
+      wrap.appendChild(h("div","font-size:18px;color:"+C.ink+";margin-bottom:4px",lab));
+      wrap.appendChild(h("div","font-size:16px;color:"+C.sub+";margin-bottom:18px",rating(n)));
+    }
   }
   if(S.mode==="vs" || S.mode==="keep"){
     if(gotMedal){
