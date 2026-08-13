@@ -28,6 +28,8 @@
   @keyframes crowdBounce { 0%,100%{ transform:translateY(0) } 30%{ transform:translateY(-7px) } }
   @keyframes fwBurst { from{ transform:translate(0,0); opacity:1 } to{ transform:translate(var(--dx),var(--dy)); opacity:0 } }
   @keyframes rainFall { from{ transform:translateY(-20vh) } to{ transform:translateY(120vh) } }
+  @keyframes gkSlam { from { transform:scale(1.7); opacity:0 } 55% { transform:scale(0.95); opacity:1 } to { transform:scale(1); opacity:1 } }
+  @keyframes gkVeil { from { opacity:0 } to { opacity:1 } }
 </style>
 </head>
 <body>
@@ -66,7 +68,7 @@ var REAL_KICKERS = [
   { name:"ラミン・ヤマル", color:"#d94a4a", star:5, note:"スペイン代表。若き天才。", フェイント力:88, キック力:66, 正確性:80 },
   { name:"ルカ・モドリッチ", color:"#c8443c", star:4, note:"クロアチア代表。正確な技術。", フェイント力:75, キック力:72, 正確性:90 },
   { name:"ハーランド", color:"#2a5c8a", star:5, note:"ノルウェー代表。怪物ストライカー。", フェイント力:45, キック力:97, 正確性:80 },
-  { name:"上田綺世", color:"#2a5ca8", star:3, note:"日本代表FW。", フェイント力:42, キック力:74, 正確性:72 },
+  { name:"上田綺世", color:"#2a5ca8", star:4, note:"日本代表FW。オランダで得点王。強さと決定力。", フェイント力:55, キック力:82, 正確性:80 },
   { name:"久保建英", color:"#2a5ca8", star:4, note:"日本代表。技巧派。", フェイント力:80, キック力:60, 正確性:82 },
   { name:"ベリンガム", color:"#3b4a6b", star:5, note:"イングランド代表。", フェイント力:62, キック力:82, 正確性:80 },
   { name:"ソン・フンミン", color:"#d33b3b", star:5, note:"韓国代表。両足の強烈シュート。", フェイント力:68, キック力:88, 正確性:84 },
@@ -78,10 +80,32 @@ var REAL_KICKERS = [
   { name:"ロメル・ルカク", color:"#d4b23a", star:4, note:"ベルギー代表。パワー型。", フェイント力:42, キック力:92, 正確性:66 },
   { name:"ヴィニシウス", color:"#f2d23f", star:5, note:"ブラジル代表。スピードとトリック。", フェイント力:85, キック力:74, 正確性:74 },
   { name:"オヤルサバル", color:"#d94a4a", star:4, note:"スペイン代表。PKに強い。", フェイント力:62, キック力:78, 正確性:88 },
-  { name:"ククレジャ", color:"#d94a4a", star:3, note:"スペイン代表DF。守備の選手。", フェイント力:40, キック力:55, 正確性:60 },
+  { name:"ククレジャ", color:"#d94a4a", star:4, note:"スペイン代表。ユーロ制覇の左サイドバック。強烈な左足。", フェイント力:62, キック力:84, 正確性:78 },
   { name:"K直人", color:"#ffcc33", star:5, note:"あなた（K直人）。数値は自由に調整しよう！", フェイント力:85, キック力:85, 正確性:85 },
 ];
-// 架空の一般選手を自動生成してプールに混ぜる
+/* 架空の一般選手を自動生成してプールに混ぜる
+   tier "low" … ★1〜2。数値20〜54（調査シートの目安で「平均的」）
+   tier "mid" … ★3。メンタル62〜78・その他54〜72（「平均的」と「一流」のあいだを埋める）
+   実在選手は全員★4〜5なので、★を見ればどの層かが分かる。 */
+function makeMidMobs(kind, n){
+  var gkNames=["たなか けんじ","イ ジュンホ","デイビッド ジョーンズ","アンドレス モレノ",
+               "ジョルジョ フェラーリ","シュテファン ベッカー","リュック モロー","ブルーノ コスタ"];
+  var fwNames=["さとう ゆうた","チェ ドンヒョン","ハリー エバンス","ハビエル ルイス",
+               "マッテオ グレコ","ヨナス ヴァーグナー","レミ ロラン","チアゴ アルメイダ",
+               "カリム ベンナー","サンダー デヨング","マルティン ソーサ","エミール ラーション"];
+  var names=(kind==="gk")?gkNames:fwNames;
+  var cols=["#6b7f9a","#6b8f7a","#9a8a6b","#7a6b8f","#8f7a6b","#6b8f8f"];
+  var arr=[];
+  for(var i=0;i<n;i++){
+    var nm=(i<names.length)?names[i]:(names[i%names.length]+"・"+(i+1));
+    var col=cols[i%cols.length];
+    if(kind==="gk") arr.push({ name:nm, color:col, star:3, note:"架空の選手（自動生成）。実在しません。中堅クラス。",
+      メンタル:62+(i*7)%19, 反応:55+(i*5)%18, フィジカル:54+(i*11)%20 });
+    else arr.push({ name:nm, color:col, star:3, note:"架空の選手（自動生成）。実在しません。中堅クラス。",
+      フェイント力:34+(i*7)%20, キック力:50+(i*13)%23, 正確性:56+(i*7)%17 });
+  }
+  return arr;
+}
 function makeMobs(kind, n){
   // 架空の一般的な選手名（各国の「山田太郎」にあたる、ごく普通の名前）
   var gkNames=["やまだ たろう","キム ミンス","ジョン スミス","ルイス ガルシア","マルコ ロッシ",
@@ -100,8 +124,8 @@ function makeMobs(kind, n){
   }
   return arr;
 }
-var KEEPERS = REAL_GKS.concat(makeMobs("gk", 10));
-var KICKERS = REAL_KICKERS.concat(makeMobs("fw", 16));
+var KEEPERS = REAL_GKS.concat(makeMidMobs("gk", 8), makeMobs("gk", 10));
+var KICKERS = REAL_KICKERS.concat(makeMidMobs("fw", 12), makeMobs("fw", 16));
 /* ▲▲▲ 書き換えるのはここまで ▲▲▲ */
 /* ===== 選手アバター画像（自動生成。編集不要）=====================
    名前をキーにした顔画像。名前を変えると自動生成アバターに戻ります。
@@ -237,7 +261,7 @@ function posPenalty(zone, gk){
   var high=(p.r===0)?1:0;           // 上段だけ
   return Math.min(0.85,
       0.45*side*(1-gk.反応/100*0.5)
-    + 0.50*high*(1-gk.反応/100*0.55));
+    + 0.25*high*(1-gk.反応/100*0.55));
 }
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
 // セーブ判定（GK能力 × キッカー能力）。saved=true ならGKの勝ち
@@ -257,7 +281,9 @@ function resolveSave(target, committed, gk, kicker, candidates, oppGK){
   }
   // 上限を先に適用してから押し込みを引く（順序を逆にするとキック力が吸収され無効化する）
   var chance=Math.min(96, (0.42+(gk.フィジカル/100)*1.18)*pReach*100);
-  var push=kicker.キック力*0.23*(1-(gk.フィジカル/100)*0.4);
+  // 押し込み：キック力がGKのフィジカルを上回った分だけ効く（力比べ）
+  // 弱いキッカーは押し込めず、強いキッカーだけがねじ込める
+  var push=Math.max(0, kicker.キック力 - gk.フィジカル*0.50)*0.45;
   chance=Math.max(0, chance-push);
   if(oppGK) chance=Math.min(96, chance*LV().saveMul);   // 難易度：相手GKのときだけ効く
   var saved=Math.random()*100<chance, near=d<0.5;
@@ -295,7 +321,9 @@ function resolveSave(target, committed, gk, kicker, candidates, oppGK){
 function neighborZone(z){ var n=allZones().filter(function(i){ var d=cellDist(i,z); return d>0&&d<1.5; }); return n[Math.floor(Math.random()*n.length)]; }
 function farZone(z){ var f=allZones().filter(function(i){ return cellDist(i,z)>=2; }); return f.length? f[Math.floor(Math.random()*f.length)] : neighborZone(z); }
 function keeperGuess(shot, gk, kicker){
-  var read=Math.max(0.06, Math.min(0.94, gk.メンタル/100 - kicker.フェイント力/160));
+  // 読み＝メンタルとフェイント力の比べ算（押し込みと同じ考え方）。
+  // 引き算だと相手が強いとき全員が下限に沈み、メンタルの差が消えてしまう。
+  var read=0.94/(1+1.857*Math.pow(kicker.フェイント力/gk.メンタル, 2.5));
   if(Math.random()<read) return Math.random()<0.6 ? shot : neighborZone(shot);
   return farZone(shot);
 }
@@ -389,17 +417,88 @@ function kickerTags(k){
   if(t.length===0) t.push("正攻法タイプ"); return t;
 }
 
+/* ---------- きろくしつ（localStorage 永続記録）----------
+   保存できない環境（file:// 直開きなど）では Rec.ok=false になり、
+   その回だけ遊べる状態になる。黙って壊れないよう画面に表示する。 */
+var REC_KEY="pkwc2026";
+var Rec={
+  ok:true,
+  data:null,
+  blank:function(){
+    return { v:1,
+      prefs:{ level:"normal", sound:true },
+      vs:{ play:0, win:0, lose:0 },
+      kick:{ play:0, best:0 },
+      keep:{ play:0, best:0 },
+      streak:{ best:0 },
+      medals:{ bronze:0, silver:0, gold:0, platinum:0 },
+      trophies:{},   // トーナメント優勝トロフィー（今後）
+      tour:null      // トーナメント中断データ（今後）
+    };
+  },
+  load:function(){
+    // 書けるかどうかを先に試す（file:// 直開きなどでは弾かれる）
+    try{ localStorage.setItem(REC_KEY+"_t","1"); localStorage.removeItem(REC_KEY+"_t"); this.ok=true; }
+    catch(e){ this.ok=false; }
+    this.data=this.blank();
+    try{
+      var raw=localStorage.getItem(REC_KEY);
+      if(raw){
+        var got=JSON.parse(raw), b=this.blank();
+        for(var k in b) if(got[k]!=null) this.data[k]=got[k];
+      }
+    }catch(e){ /* 壊れていたら初期値のまま。書ければ次の保存で上書きされる */ }
+    return this.data;
+  },
+  save:function(){
+    if(!this.ok) return false;
+    try{ localStorage.setItem(REC_KEY, JSON.stringify(this.data)); return true; }
+    catch(e){ this.ok=false; return false; }
+  },
+  savePrefs:function(){ this.data.prefs.level=levelPref; this.data.prefs.sound=soundPref; this.save(); },
+  // 連続セーブ本数 → メダル（銅2・銀3・金4・プラチナ5）
+  medalOf:function(n){
+    if(n>=5) return { key:"platinum", label:"プラチナ", color:"#d8e6f2" };
+    if(n>=4) return { key:"gold",     label:"ゴールド", color:"#e8b84b" };
+    if(n>=3) return { key:"silver",   label:"シルバー", color:"#c6ccd4" };
+    if(n>=2) return { key:"bronze",   label:"ブロンズ", color:"#c08b5c" };
+    return null;
+  },
+  // 1試合ぶんを記録する。返り値＝今回とれたメダル（なければ null）
+  finish:function(st){
+    var d=this.data, medal=null;
+    if(st.mode==="vs"){
+      d.vs.play++;
+      if(st.youScore>st.oppScore) d.vs.win++; else d.vs.lose++;
+    } else if(st.mode==="kick"){
+      d.kick.play++;
+      if(st.youScore>d.kick.best) d.kick.best=st.youScore;
+    } else if(st.mode==="keep"){
+      d.keep.play++;
+      if(st.saves>d.keep.best) d.keep.best=st.saves;
+    }
+    // メダルは「守る場面がある」モードだけ（対戦・キーパー）
+    if(st.mode==="vs" || st.mode==="keep"){
+      if(st.bestStreak>d.streak.best) d.streak.best=st.bestStreak;
+      medal=this.medalOf(st.bestStreak);
+      if(medal) d.medals[medal.key]=(d.medals[medal.key]||0)+1;
+    }
+    this.save();
+    return medal;
+  }
+};
+
 /* ---------- 状態 ---------- */
 var S={};
 var introPref=true;   // 登場演出は常にあり（トグルは廃止）
 function resetGame(){
-  S={ screen:"mode", mode:"vs", intro:introPref, youTeam:null, oppTeam:null, round:1, youScore:0, oppScore:0, saves:0, sudden:false,
+  S={ screen:"mode", mode:"vs", intro:introPref, youTeam:null, oppTeam:null, round:1, youScore:0, oppScore:0, saves:0, streak:0, bestStreak:0, sudden:false,
       youMarks:[], oppMarks:[], turn:"attack", phase:"", shot:null, guess:null, ao:null,
       dtarget:null, candidates:[], committed:null, progress:0, dout:null };
 }
 resetGame();
-var raf=0, flightTimer=0, ui={};
-function clearTimers(){ cancelAnimationFrame(raf); clearTimeout(flightTimer); }
+var raf=0, flightTimer=0, decisiveTimer=0, ui={};
+function clearTimers(){ cancelAnimationFrame(raf); clearTimeout(flightTimer); clearTimeout(decisiveTimer); }
 var app=document.getElementById("app");
 app.addEventListener("click", function(e){ unlockSnd(); var b=e.target && e.target.closest ? e.target.closest("button") : null; if(b && !b.classList.contains("cell")) SFX.click(); }, true);
 function h(tag,style,text){ var e=document.createElement(tag); if(style) e.setAttribute("style",style); if(text!=null) e.textContent=text; return e; }
@@ -697,14 +796,14 @@ function renderModeSelect(){
   ["easy","normal","hard"].forEach(function(key){
     var L=LEVELS[key], on=(levelPref===key);
     var b=h("button","flex:1;background:"+(on?"#4bc0e8":"rgba(255,255,255,0.06)")+";border:1px solid "+(on?"#4bc0e8":"rgba(255,255,255,0.16)")+";color:"+(on?"#0b1f13":C.ink)+";font-size:13px;font-weight:800;padding:10px 4px;border-radius:12px;cursor:pointer;touch-action:manipulation",L.label);
-    b.addEventListener("click", function(){ levelPref=key; renderModeSelect(); });
+    b.addEventListener("click", function(){ levelPref=key; Rec.savePrefs(); renderModeSelect(); });
     lvRow.appendChild(b);
   });
   lvWrap.appendChild(lvRow);
   lvWrap.appendChild(h("div","font-size:11px;color:"+C.sub+";margin-top:5px",LV().desc));
   app.appendChild(lvWrap);
   var snd=h("button","width:100%;text-align:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.16);color:"+C.ink+";font-size:13px;font-weight:700;padding:10px;border-radius:12px;cursor:pointer;margin-bottom:14px;touch-action:manipulation","サウンド： "+(soundPref?"あり ✓":"なし"));
-  snd.addEventListener("click", function(){ soundPref=!soundPref; if(soundPref) SFX.on(); renderModeSelect(); });
+  snd.addEventListener("click", function(){ soundPref=!soundPref; Rec.savePrefs(); if(soundPref) SFX.on(); renderModeSelect(); });
   app.appendChild(snd);
   var modes=[
     ["vs","対戦モード","攻めも守りも。チーム対チームで勝敗を決める。","#4bc0e8"],
@@ -720,6 +819,75 @@ function renderModeSelect(){
     list.appendChild(card);
   });
   app.appendChild(list);
+  var recCard=h("button","width:100%;text-align:left;background:rgba(232,184,75,0.08);border:1px solid #e8b84b;border-radius:14px;padding:12px 14px;color:"+C.ink+";cursor:pointer;touch-action:manipulation;margin-top:12px;display:flex;align-items:center;gap:10px");
+  recCard.appendChild(h("span","font-size:22px;flex:0 0 auto","🏅"));
+  var rt=h("div","min-width:0");
+  rt.appendChild(h("div","font-size:15px;font-weight:800;color:#e8b84b","きろくしつ"));
+  rt.appendChild(h("div","font-size:11px;color:"+C.sub+";margin-top:2px","つうさん成績とメダル。"));
+  recCard.appendChild(rt);
+  recCard.addEventListener("click", renderRecords);
+  app.appendChild(recCard);
+}
+
+/* ---------- きろくしつ ---------- */
+function renderRecords(){
+  clearTimers(); app.innerHTML=""; titleBg(false);
+  app.appendChild(navBar(renderModeSelect));
+  app.appendChild(h("div","text-align:center;font-size:20px;font-weight:900;color:#e8b84b;margin:2px 0 4px","🏅 きろくしつ"));
+  var d=Rec.data;
+  if(!Rec.ok) app.appendChild(h("div","text-align:center;font-size:11px;color:"+C.goal+";margin-bottom:8px","※この環境ではきろくをほぞんできません"));
+
+  function card(title){
+    var c=h("div","background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:12px 14px;margin-bottom:10px");
+    c.appendChild(h("div","font-size:12px;letter-spacing:2px;color:"+C.sub+";margin-bottom:6px",title));
+    return c;
+  }
+  function row(k,v,col){
+    var r=h("div","display:flex;justify-content:space-between;align-items:baseline;padding:3px 0");
+    r.appendChild(h("span","font-size:13px;color:"+C.ink,k));
+    r.appendChild(h("span","font-size:15px;font-weight:800;color:"+(col||C.ink),v));
+    return r;
+  }
+  // メダル
+  var mc=card("メダル（1試合の連続セーブ）");
+  var mrow=h("div","display:flex;gap:6px");
+  [["bronze","ブロンズ","2本","#c08b5c"],["silver","シルバー","3本","#c6ccd4"],
+   ["gold","ゴールド","4本","#e8b84b"],["platinum","プラチナ","5本","#d8e6f2"]].forEach(function(m){
+    var n=d.medals[m[0]]||0;
+    var b=h("div","flex:1;text-align:center;background:rgba(255,255,255,0.04);border:1px solid "+(n>0?m[3]:"rgba(255,255,255,0.12)")+";border-radius:10px;padding:8px 2px;opacity:"+(n>0?"1":"0.42"));
+    b.appendChild(h("div","font-size:18px","🏅"));
+    b.appendChild(h("div","font-size:10px;font-weight:800;color:"+m[3],m[1]));
+    b.appendChild(h("div","font-size:9px;color:"+C.sub,m[2]));
+    b.appendChild(h("div","font-size:14px;font-weight:900;color:"+C.ink,"×"+n));
+    mrow.appendChild(b);
+  });
+  mc.appendChild(mrow);
+  mc.appendChild(row("さいこう連続セーブ", d.streak.best+"本", C.save));
+  app.appendChild(mc);
+  // 対戦
+  var vc=card("対戦モード");
+  vc.appendChild(row("しあい数", d.vs.play+"回"));
+  vc.appendChild(row("勝ち", d.vs.win+"回", C.save));
+  vc.appendChild(row("まけ", d.vs.lose+"回", C.goal));
+  app.appendChild(vc);
+  // キッカー／キーパー
+  var kc=card("キッカー／キーパーモード");
+  kc.appendChild(row("キッカー さいこう得点", d.kick.best+" / "+ROUNDS+"（"+d.kick.play+"回）", C.ball));
+  kc.appendChild(row("キーパー さいこうセーブ", d.keep.best+" / "+ROUNDS+"（"+d.keep.play+"回）", C.save));
+  app.appendChild(kc);
+  // トロフィー（トーナメント実装後に中身が入る）
+  var tc=card("トロフィー");
+  tc.appendChild(h("div","font-size:12px;color:"+C.sub,"トーナメントモードを作ったら、ここに優勝トロフィーがならびます。"));
+  app.appendChild(tc);
+
+  var del=navBtn("きろくを ぜんぶ消す");
+  del.style.color=C.goal; del.style.borderColor="rgba(255,90,95,0.4)";
+  del.addEventListener("click", function(){
+    if(!confirm("きろくを ぜんぶ消します。もとにもどせません。いいですか？")) return;
+    Rec.data=Rec.blank(); Rec.data.prefs.level=levelPref; Rec.data.prefs.sound=soundPref;
+    Rec.save(); renderRecords();
+  });
+  var dw=h("div","text-align:center;margin-top:6px"); dw.appendChild(del); app.appendChild(dw);
 }
 
 /* ---------- チーム選択 ---------- */
@@ -780,7 +948,7 @@ function teamCard(tm, onClick){
 
 /* ---------- 選択フロー（モード別）---------- */
 function beginSelection(){
-  S.youTeam=null; S.oppTeam=null; S.round=1; S.youScore=0; S.oppScore=0; S.saves=0; S.sudden=false; S.youMarks=[]; S.oppMarks=[];
+  S.youTeam=null; S.oppTeam=null; S.round=1; S.youScore=0; S.oppScore=0; S.saves=0; S.streak=0; S.bestStreak=0; S.sudden=false; S.youMarks=[]; S.oppMarks=[];
   if(S.mode==="keep") selKeepYou();
   else if(S.mode==="kick") selKickYou();
   else selVsYou();
@@ -1106,8 +1274,10 @@ function marksBar(){
 
 /* ---------- ラウンド進行 ---------- */
 function beginRound(r){ clearTimers(); S.round=r; if(S.mode==="keep") enterDefend(); else enterAttack(); }
-function enterAttack(){ S.turn="attack"; if(S.intro){ var you=myKicker(); playerIntro(you, "第"+S.round+"キッカー（あなた）", kickerTags(you), [kickerMiniEls(you)], S.youTeam.color, renderAttack); } else renderAttack(); }
-function enterDefend(){ if(S.intro){ var k=oppKicker(); playerIntro(k, "第"+S.round+"キッカー（相手）", kickerTags(k), marksWarnEls(k), S.oppTeam.color, startDefend); } else startDefend(); }
+function goAttack(){ decisiveOverlay("attack", renderAttack); }
+function goDefend(){ decisiveOverlay("defend", startDefend); }
+function enterAttack(){ S.turn="attack"; if(S.intro){ var you=myKicker(); playerIntro(you, "第"+S.round+"キッカー（あなた）", kickerTags(you), [kickerMiniEls(you)], S.youTeam.color, goAttack); } else goAttack(); }
+function enterDefend(){ if(S.intro){ var k=oppKicker(); playerIntro(k, "第"+S.round+"キッカー（相手）", kickerTags(k), marksWarnEls(k), S.oppTeam.color, goDefend); } else goDefend(); }
 function kickerMiniEls(k){ var mb=h("div","max-width:300px;margin:0 auto"); mb.appendChild(kickerBars(k)); return mb; }
 function marksWarnEls(k){
   var gk=S.youTeam.gk, marks=1+candidateExtra(k, gk);
@@ -1142,6 +1312,7 @@ function renderAttack(){
   app.appendChild(scoreboard());
   app.appendChild(marksBar());
   app.appendChild(h("div","text-align:center;font-size:15px;font-weight:800;color:"+S.youTeam.color+";margin:2px 0 2px","▶ あなたのキック（"+S.round+"人目）"));
+  var dbA=decisiveBanner("attack"); if(dbA) app.appendChild(dbA);
   var info=h("div","display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2px");
   info.appendChild(avatarBox(you.name, you.color, 26));
   info.appendChild(nameWithBadge(you,"font-size:13px;font-weight:700;color:"+C.ink,9));
@@ -1219,6 +1390,7 @@ function renderDefend(){
   app.appendChild(scoreboard());
   app.appendChild(marksBar());
   app.appendChild(h("div","text-align:center;font-size:15px;font-weight:800;color:"+S.oppTeam.color+";margin:2px 0 2px","▶ 相手のキック（"+S.round+"人目・守る）"));
+  var dbD=decisiveBanner("defend"); if(dbD) app.appendChild(dbD);
   // 相手キッカー情報
   var info=h("div","display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2px");
   info.appendChild(avatarBox(kicker.name, kicker.color, 26));
@@ -1319,7 +1491,7 @@ function defendStrike(t){
   if(missWide(oppKicker(), t)){
     diveKeeper(S.committed!=null ? S.committed : t);   // 枠外でもキーパーは跳ぶ
     S.dout={ saved:true, wide:true, reason: pick(["相手が枠を外した！　助かった！","大きく外れた！　命拾いだ！"]), stat:"正確性", hold:false, power:false };
-    S.phase="resolved"; S.saves++; S.oppMarks.push(false); crowds(true);
+    S.phase="resolved"; S.saves++; bumpStreak(true); S.oppMarks.push(false); crowds(true);
     flyBallWide(t, function(){ ui.ballInner.style.animation="none"; defendStatus(); });
     return;
   }
@@ -1327,6 +1499,7 @@ function defendStrike(t){
     var res=resolveSave(t, S.committed, S.youTeam.gk, oppKicker(), S.candidates);
     S.dout=res; S.phase="resolved";
     if(res.saved) S.saves++; else S.oppScore++;
+    bumpStreak(res.saved);
     S.oppMarks.push(!res.saved);
     ui.ballInner.style.animation="none";
     ui.cells[t].style.background = res.saved ? "rgba(53,224,122,0.28)":"rgba(255,90,95,0.28)";
@@ -1353,6 +1526,70 @@ function endRound(){
   if(decided){ renderResult(); return; }
   beginRound(S.round+1);
 }
+/* 連続セーブのカウント。止めれば伸び、決められたら0に戻る。 */
+function bumpStreak(saved){
+  if(saved){ S.streak++; if(S.streak>S.bestStreak) S.bestStreak=S.streak; }
+  else S.streak=0;
+}
+/* この1本で決着がつく場面だけ、蹴る前に警告を出す（対戦モードのみ）
+   自分が蹴る前は両チームの残り本数が同じなので、
+   「きめれば勝ち」と「はずせばまけ」が同時に成立することはない（守備側も同様）。 */
+function decisiveState(kind){
+  if(S.mode!=="vs") return null;
+  var yLeft, oLeft;
+  if(S.sudden){ yLeft=(kind==="attack")?1:0; oLeft=1; }
+  else { yLeft=ROUNDS-S.youMarks.length; oLeft=ROUNDS-S.oppMarks.length; }
+  var win, lose;
+  if(kind==="attack"){
+    win  = (S.youScore+1) > S.oppScore + oLeft;      // 決めれば逆転不可能
+    lose = S.oppScore > S.youScore + (yLeft-1);       // 外せば逆転不可能
+    if(win)  return { win:true,  txt:"これをきめれば勝ち！" };
+    if(lose) return { win:false, txt:"はずせばまけ…" };
+  } else {
+    win  = S.youScore > S.oppScore + (oLeft-1);       // 止めれば逆転不可能
+    lose = (S.oppScore+1) > S.youScore + yLeft;       // 決められたら逆転不可能
+    if(win)  return { win:true,  txt:"これをとめれば勝ち！" };
+    if(lose) return { win:false, txt:"決められたらまけ…" };
+  }
+  return null;
+}
+// 蹴る直前の画面にも小さく残す帯
+function decisiveBanner(kind){
+  var d=decisiveState(kind); if(!d) return null;
+  var col = d.win ? C.gold : C.goal;
+  return h("div","text-align:center;font-size:14px;font-weight:900;color:"+col
+    +";background:"+(d.win?"rgba(232,184,75,0.14)":"rgba(255,90,95,0.14)")
+    +";border:1px solid "+col+"66;border-radius:10px;padding:5px 12px;margin:4px auto 2px;max-width:300px",
+    (d.win?"⚡ ":"⚠ ")+d.txt);
+}
+/* プレイ前の全画面演出。出現→静止→フェードで消え、そのあと本編（ホイッスル）へ。
+   尺は DECISIVE_MS のみで調整できる。画面タップで即スキップ。 */
+var DECISIVE_MS=1100;
+function decisiveOverlay(kind, onDone){
+  var d=decisiveState(kind);
+  if(!d){ onDone(); return; }
+  var col=d.win?C.gold:C.goal;
+  var veil=h("div","position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;"
+    +"background:rgba(4,10,7,0.82);animation:gkVeil 160ms ease-out;transition:opacity 250ms ease-in");
+  var box=h("div","text-align:center;padding:0 18px;animation:gkSlam 250ms cubic-bezier(.2,1.4,.4,1) both");
+  box.appendChild(h("div","font-size:12px;letter-spacing:4px;color:"+C.sub+";margin-bottom:8px", d.win?"CHANCE":"PINCH"));
+  var t=h("div","font-size:30px;font-weight:900;line-height:1.35;color:"+col
+    +";text-shadow:0 0 22px "+col+"88", d.txt);
+  if(!d.win) t.style.animation="gkShake 320ms ease-out 250ms";
+  box.appendChild(t);
+  veil.appendChild(box);
+  document.body.appendChild(veil);
+  if(d.win) SFX.firework(); else SFX.groan();   // 短い効果音（歓声は1.5秒あり、ホイッスルに被る）
+  var done=false;
+  function finish(){
+    if(done) return; done=true;
+    clearTimeout(decisiveTimer);
+    veil.style.opacity="0";
+    decisiveTimer=setTimeout(function(){ if(veil.parentNode) veil.parentNode.removeChild(veil); onDone(); }, 250);
+  }
+  veil.addEventListener("click", finish);
+  decisiveTimer=setTimeout(finish, DECISIVE_MS);
+}
 // PK戦の途中決着：残りキックで逆転できないなら true
 function decidedNow(){
   if(S.sudden) return false;
@@ -1364,6 +1601,7 @@ function decidedNow(){
 function rating(n){ return n>=5?"パーフェクト！":n>=4?"すごい！":n>=3?"good":n>=1?"つぎがんばろう":"どんまい"; }
 function renderResult(){
   clearTimers(); app.innerHTML="";
+  var gotMedal=Rec.finish(S);   // ここで通算成績・メダルを保存する
   var wrap=h("div","text-align:center;animation:gkIn 340ms ease-out");
   wrap.appendChild(h("div","color:"+C.sub+";font-size:12px;letter-spacing:3px;margin-bottom:8px","RESULT"));
   wrap.appendChild(marksBar());
@@ -1381,7 +1619,21 @@ function renderResult(){
     wrap.appendChild(h("div","font-size:18px;color:"+C.ink+";margin-bottom:4px",lab));
     wrap.appendChild(h("div","font-size:16px;color:"+C.sub+";margin-bottom:18px",rating(n)));
   }
+  if(S.mode==="vs" || S.mode==="keep"){
+    if(gotMedal){
+      var mb=h("div","display:inline-block;text-align:center;background:rgba(255,255,255,0.05);border:1.5px solid "+gotMedal.color+";border-radius:14px;padding:8px 16px;margin-bottom:14px");
+      mb.appendChild(h("div","font-size:11px;letter-spacing:2px;color:"+C.sub,"メダルかくとく"));
+      mb.appendChild(h("div","font-size:20px;font-weight:900;color:"+gotMedal.color, "🏅 "+gotMedal.label));
+      mb.appendChild(h("div","font-size:12px;color:"+C.ink, S.bestStreak+"本れんぞくセーブ"));
+      wrap.appendChild(mb);
+    } else {
+      wrap.appendChild(h("div","font-size:12px;color:"+C.sub+";margin-bottom:14px","さいだい連続セーブ "+S.bestStreak+"本（2本でブロンズ）"));
+    }
+  }
+  if(!Rec.ok) wrap.appendChild(h("div","font-size:11px;color:"+C.goal+";margin-bottom:10px","※きろくがほぞんできません（このかいだけ遊べます）"));
   wrap.appendChild(bigButton("もう一度（モード選択へ）", S.youTeam?S.youTeam.color:"#4bc0e8", function(){ resetGame(); renderModeSelect(); }));
+  var rb=navBtn("きろくしつを見る"); rb.style.marginTop="10px";
+  rb.addEventListener("click", renderRecords); wrap.appendChild(rb);
   app.appendChild(wrap);
   if(S.mode==="vs" && S.youScore>S.oppScore){ launchFireworks(); SFX.win(); }
   else if(S.mode==="vs" && S.youScore<S.oppScore){ launchRain(); SFX.lose(); }
@@ -1421,6 +1673,9 @@ function launchFireworks(){
   burst();
 }
 
+Rec.load();
+levelPref = (LEVELS[Rec.data.prefs.level] ? Rec.data.prefs.level : "normal");
+soundPref = (Rec.data.prefs.sound !== false);
 renderTitle();
 </script>
 </body>
