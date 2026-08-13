@@ -437,6 +437,7 @@ var Rec={
       keep:{ play:0, best:0, streakBest:0 },
       streak:{ best:0 },
       medals:{ bronze:0, silver:0, gold:0, platinum:0 },
+      goalMedals:{ bronze:0, silver:0, gold:0, platinum:0 },
       trophies:{ wins:{easy:0,normal:0,hard:0}, hardStreak:0, hardBest:0, renpa2:0, renpa3:0, deepest:-1 },
       tour:null      // トーナメント中断データ（再開用）
     };
@@ -462,6 +463,7 @@ var Rec={
     // キッカー／キーパーの連続チャレンジ記録の欠けを補う
     if(this.data.kick && this.data.kick.streakBest==null) this.data.kick.streakBest=0;
     if(this.data.keep && this.data.keep.streakBest==null) this.data.keep.streakBest=0;
+    if(!this.data.goalMedals||typeof this.data.goalMedals!=="object") this.data.goalMedals={ bronze:0, silver:0, gold:0, platinum:0 };
     return this.data;
   },
   save:function(){
@@ -470,12 +472,20 @@ var Rec={
     catch(e){ this.ok=false; return false; }
   },
   savePrefs:function(){ this.data.prefs.level=levelPref; this.data.prefs.sound=soundPref; this.save(); },
-  // 連続セーブ本数 → メダル（銅2・銀3・金4・プラチナ5）
+  // 連続セーブ本数 → メダル（銅3・銀5・金8・プラチナ10）
   medalOf:function(n){
-    if(n>=5) return { key:"platinum", label:"プラチナ", color:"#d8e6f2" };
-    if(n>=4) return { key:"gold",     label:"ゴールド", color:"#e8b84b" };
-    if(n>=3) return { key:"silver",   label:"シルバー", color:"#c6ccd4" };
-    if(n>=2) return { key:"bronze",   label:"ブロンズ", color:"#c08b5c" };
+    if(n>=10) return { key:"platinum", label:"プラチナ", color:"#d8e6f2" };
+    if(n>=8)  return { key:"gold",     label:"ゴールド", color:"#e8b84b" };
+    if(n>=5)  return { key:"silver",   label:"シルバー", color:"#c6ccd4" };
+    if(n>=3)  return { key:"bronze",   label:"ブロンズ", color:"#c08b5c" };
+    return null;
+  },
+  // 連続ゴール本数 → メダル（銅5・銀10・金15・プラチナ20）。蹴る方が有利なぶん高め。
+  goalMedalOf:function(n){
+    if(n>=20) return { key:"platinum", label:"プラチナ", color:"#d8e6f2" };
+    if(n>=15) return { key:"gold",     label:"ゴールド", color:"#e8b84b" };
+    if(n>=10) return { key:"silver",   label:"シルバー", color:"#c6ccd4" };
+    if(n>=5)  return { key:"bronze",   label:"ブロンズ", color:"#c08b5c" };
     return null;
   },
   // 1試合ぶんを記録する。返り値＝今回とれたメダル（なければ null）
@@ -493,11 +503,16 @@ var Rec={
       if(st.endless){ if(st.saves>(d.keep.streakBest||0)) d.keep.streakBest=st.saves; }
       else if(st.saves>d.keep.best) d.keep.best=st.saves;
     }
-    // メダルは「守る場面がある」モードだけ（対戦・キーパー）
+    // 連続セーブメダル（守る場面がある対戦・キーパー）
     if(st.mode==="vs" || st.mode==="keep"){
       if(st.bestStreak>d.streak.best) d.streak.best=st.bestStreak;
       medal=this.medalOf(st.bestStreak);
       if(medal) d.medals[medal.key]=(d.medals[medal.key]||0)+1;
+    }
+    // 連続ゴールメダル（キッカーの連続チャレンジ）
+    if(st.mode==="kick" && st.endless){
+      var gm=this.goalMedalOf(st.youScore);
+      if(gm){ d.goalMedals[gm.key]=(d.goalMedals[gm.key]||0)+1; medal=gm; }
     }
     this.save();
     return medal;
@@ -884,22 +899,30 @@ function renderRecords(){
     r.appendChild(h("span","font-size:15px;font-weight:800;color:"+(col||C.ink),v));
     return r;
   }
-  // メダル
-  var mc=card("メダル（1試合の連続セーブ）");
-  var mrow=h("div","display:flex;gap:6px");
-  [["bronze","ブロンズ","2本","#c08b5c"],["silver","シルバー","3本","#c6ccd4"],
-   ["gold","ゴールド","4本","#e8b84b"],["platinum","プラチナ","5本","#d8e6f2"]].forEach(function(m){
-    var n=d.medals[m[0]]||0;
-    var b=h("div","flex:1;text-align:center;background:rgba(255,255,255,0.04);border:1px solid "+(n>0?m[3]:"rgba(255,255,255,0.12)")+";border-radius:10px;padding:8px 2px;opacity:"+(n>0?"1":"0.42"));
-    b.appendChild(h("div","font-size:18px","🏅"));
-    b.appendChild(h("div","font-size:10px;font-weight:800;color:"+m[3],m[1]));
-    b.appendChild(h("div","font-size:9px;color:"+C.sub,m[2]));
-    b.appendChild(h("div","font-size:14px;font-weight:900;color:"+C.ink,"×"+n));
-    mrow.appendChild(b);
-  });
-  mc.appendChild(mrow);
+  // メダルの4枠を作る共通部品
+  function medalGrid(store, labels){
+    var mrow=h("div","display:flex;gap:6px");
+    [["bronze","ブロンズ","#c08b5c"],["silver","シルバー","#c6ccd4"],["gold","ゴールド","#e8b84b"],["platinum","プラチナ","#d8e6f2"]].forEach(function(m,i){
+      var n=store[m[0]]||0;
+      var b=h("div","flex:1;text-align:center;background:rgba(255,255,255,0.04);border:1px solid "+(n>0?m[2]:"rgba(255,255,255,0.12)")+";border-radius:10px;padding:8px 2px;opacity:"+(n>0?"1":"0.42"));
+      b.appendChild(h("div","font-size:18px","🏅"));
+      b.appendChild(h("div","font-size:10px;font-weight:800;color:"+m[2],m[1]));
+      b.appendChild(h("div","font-size:9px;color:"+C.sub,labels[i]));
+      b.appendChild(h("div","font-size:14px;font-weight:900;color:"+C.ink,"×"+n));
+      mrow.appendChild(b);
+    });
+    return mrow;
+  }
+  // メダル（連続セーブ／キーパー）
+  var mc=card("🧤 メダル（連続セーブ／キーパー）");
+  mc.appendChild(medalGrid(d.medals, ["3連続","5連続","8連続","10連続"]));
   mc.appendChild(row("さいこう連続セーブ", d.streak.best+"本", C.save));
   app.appendChild(mc);
+  // メダル（連続ゴール／キッカー・連続チャレンジ）
+  var gc=card("⚽ メダル（連続ゴール／キッカー）");
+  gc.appendChild(medalGrid(d.goalMedals||{}, ["5連続","10連続","15連続","20連続"]));
+  gc.appendChild(row("さいこう連続ゴール", (d.kick.streakBest||0)+"本", C.ball));
+  app.appendChild(gc);
   // 対戦
   var vc=card("対戦モード");
   vc.appendChild(row("しあい数", d.vs.play+"回"));
@@ -910,8 +933,6 @@ function renderRecords(){
   var kc=card("キッカー／キーパーモード");
   kc.appendChild(row("キッカー さいこう得点（5本）", d.kick.best+" / "+ROUNDS+"（"+d.kick.play+"回）", C.ball));
   kc.appendChild(row("キーパー さいこうセーブ（5本）", d.keep.best+" / "+ROUNDS+"（"+d.keep.play+"回）", C.save));
-  kc.appendChild(row("🔥 連続ゴール さいこう", (d.kick.streakBest||0)+" 連続", C.ball));
-  kc.appendChild(row("🔥 連続セーブ さいこう", (d.keep.streakBest||0)+" 連続", C.save));
   app.appendChild(kc);
   // トロフィー（トーナメント実装後に中身が入る）
   var tc=card("トロフィー（トーナメント優勝）");
@@ -987,7 +1008,7 @@ function header(title, sub){ var d=h("div","margin-bottom:12px"); d.appendChild(
 function kickersSummary(tm){
   var wrap=h("div","margin-top:6px");
   var top=h("div","display:flex;align-items:center;gap:6px;justify-content:center");
-  top.appendChild(h("span","font-size:10px;font-weight:700;color:"+C.sub,"FW×5"));
+  top.appendChild(h("span","font-size:10px;font-weight:700;color:"+C.sub,"FW×"+((tm.kickers&&tm.kickers.length)||0)));
   if(!tm.kickers || !tm.kickers.length){ top.appendChild(h("span","font-size:12px;color:"+C.sub,"—")); wrap.appendChild(top); return wrap; }
   var avg=Math.round(tm.kickers.reduce(function(a,k){ return a+k.star; },0)/tm.kickers.length);
   top.appendChild(h("span","font-size:11px;color:"+C.gold+";letter-spacing:1px",stars(avg)));
@@ -1078,8 +1099,15 @@ function selKeepOpp(){
     individual:function(){ renderPickKickers({ title:"相手キッカー5人を選ぶ", sub:"蹴ってくる順に5人", back:selKeepOpp,
       onDone:function(ks){ finishSel({ youGK:S.pYouGK, oppKickers:ks, oppName:"相手", oppColor:ks[0].color }); } }); } });
 }
-// キッカーモード：自分キッカー5人 →（5本なら相手GK／連続ならそのまま開始）
-function selKickYou(){ renderPickKickersMode({ title:"自分のキッカー5人", sub:"おまかせ or 自分で選ぶ", back:S.endless?chooseSubMode:renderModeSelect, onDone:function(ks){ S.pYouKickers=ks; if(S.endless) startEndless(); else selKickOpp(); } }); }
+// キッカーモード：5本＝自分キッカー5人→相手GK／連続＝キッカー1人→そのまま開始
+function selKickYou(){
+  if(S.endless){
+    renderPickKicker1({ title:"キッカーを1人えらぶ", sub:"この選手でエンドレスに挑戦！", back:chooseSubMode,
+      onPick:function(k){ S.pYouKickers=[k]; startEndless(); } });
+    return;
+  }
+  renderPickKickersMode({ title:"自分のキッカー5人", sub:"おまかせ or 自分で選ぶ", back:renderModeSelect, onDone:function(ks){ S.pYouKickers=ks; selKickOpp(); } });
+}
 function selKickOpp(){
   renderPickOpp({ title:"相手を選ぶ", sub:"点を取る相手GK（おまかせ or 個別）", back:selKickYou,
     onRandom:function(){ var g=randGK(); finishSel({ youKickers:S.pYouKickers, oppGK:g, oppName:"おまかせ", oppColor:g.color }); },
@@ -1127,6 +1155,25 @@ function renderPickKickersMode(cfg){
   ind.addEventListener("click", function(){ renderPickKickers({ title:cfg.title, sub:"蹴る順に5人", back:cfg.back, onDone:cfg.onDone }); });
   app.appendChild(ind);
   app.appendChild(h("p","color:"+C.sub+";font-size:12px;margin-top:14px;line-height:1.6","おまかせは、強い選手も力の弱い選手もランダムに混ざります。「架空」は自動生成の選手です。"));
+}
+// 連続チャレンジ用：キッカーを1人だけ選ぶ（タップで即けってい）
+function renderPickKicker1(cfg){
+  clearTimers(); app.innerHTML="";
+  app.appendChild(navBar(cfg.back)); header(cfg.title, cfg.sub);
+  app.appendChild(bigButton("おまかせ（ランダム1人）", "#ffd23f", function(){ cfg.onPick(randKickers(1)[0]); }));
+  var grid=h("div","display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px");
+  allKickers().forEach(function(k){
+    var card=h("button","text-align:left;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.14);border-radius:12px;padding:10px;color:"+C.ink+";cursor:pointer;touch-action:manipulation;min-width:0;overflow:hidden");
+    var top=h("div","display:flex;align-items:center;gap:8px;margin-bottom:6px");
+    top.appendChild(avatarBox(k.name,k.color,30));
+    var nm=h("div","min-width:0");
+    nm.appendChild(nameWithBadge(k,"font-size:13px;font-weight:700;color:"+C.ink+";display:block;white-space:nowrap",8));
+    nm.appendChild(h("div","font-size:10px;color:"+C.gold,stars(k.star))); top.appendChild(nm);
+    card.appendChild(top); card.appendChild(kickerBars(k));
+    card.addEventListener("click", function(){ cfg.onPick(k); });
+    grid.appendChild(card);
+  });
+  app.appendChild(grid);
 }
 function renderPickKickers(cfg){
   var chosen=[];
@@ -1397,8 +1444,8 @@ function marksBar(){
 function beginRound(r){ clearTimers(); S.round=r; if(S.endless && r>1) endlessSetOpp(); if(S.mode==="keep") enterDefend(); else enterAttack(); }
 function goAttack(){ decisiveOverlay("attack", renderAttack); }
 function goDefend(){ decisiveOverlay("defend", startDefend); }
-function enterAttack(){ S.turn="attack"; if(S.intro){ var you=myKicker(); playerIntro(you, "第"+S.round+"キッカー（あなた）", kickerTags(you), [kickerMiniEls(you)], S.youTeam.color, goAttack); } else goAttack(); }
-function enterDefend(){ if(S.intro){ var k=oppKicker(); playerIntro(k, "第"+S.round+"キッカー（相手）", kickerTags(k), marksWarnEls(k), S.oppTeam.color, goDefend); } else goDefend(); }
+function enterAttack(){ S.turn="attack"; if(S.intro){ var you=myKicker(); playerIntro(you, (S.endless?(S.round+"本目（あなた）"):("第"+S.round+"キッカー（あなた）")), kickerTags(you), [kickerMiniEls(you)], S.youTeam.color, goAttack); } else goAttack(); }
+function enterDefend(){ if(S.intro){ var k=oppKicker(); playerIntro(k, (S.endless?(S.round+"本目（相手）"):("第"+S.round+"キッカー（相手）")), kickerTags(k), marksWarnEls(k), S.oppTeam.color, goDefend); } else goDefend(); }
 function kickerMiniEls(k){ var mb=h("div","max-width:300px;margin:0 auto"); mb.appendChild(kickerBars(k)); return mb; }
 function marksWarnEls(k){
   var gk=S.youTeam.gk, marks=1+candidateExtra(k, gk);
@@ -1832,15 +1879,19 @@ function renderResult(){
       wrap.appendChild(h("div","font-size:16px;color:"+C.sub+";margin-bottom:18px",rating(n)));
     }
   }
-  if(S.mode==="vs" || S.mode==="keep"){
+  var isGoalMedal=(S.mode==="kick" && S.endless);
+  if(S.mode==="vs" || S.mode==="keep" || isGoalMedal){
     if(gotMedal){
+      var mstreak=isGoalMedal?S.youScore:S.bestStreak, mlbl=isGoalMedal?"れんぞくゴール":"れんぞくセーブ";
       var mb=h("div","display:inline-block;text-align:center;background:rgba(255,255,255,0.05);border:1.5px solid "+gotMedal.color+";border-radius:14px;padding:8px 16px;margin-bottom:14px");
       mb.appendChild(h("div","font-size:11px;letter-spacing:2px;color:"+C.sub,"メダルかくとく"));
       mb.appendChild(h("div","font-size:20px;font-weight:900;color:"+gotMedal.color, "🏅 "+gotMedal.label));
-      mb.appendChild(h("div","font-size:12px;color:"+C.ink, S.bestStreak+"本れんぞくセーブ"));
+      mb.appendChild(h("div","font-size:12px;color:"+C.ink, mstreak+"本 "+mlbl));
       wrap.appendChild(mb);
+    } else if(!isGoalMedal){
+      wrap.appendChild(h("div","font-size:12px;color:"+C.sub+";margin-bottom:14px","さいだい連続セーブ "+S.bestStreak+"本（3本でブロンズ）"));
     } else {
-      wrap.appendChild(h("div","font-size:12px;color:"+C.sub+";margin-bottom:14px","さいだい連続セーブ "+S.bestStreak+"本（2本でブロンズ）"));
+      wrap.appendChild(h("div","font-size:12px;color:"+C.sub+";margin-bottom:14px","5れんぞくゴールでブロンズ！"));
     }
   }
   if(!Rec.ok) wrap.appendChild(h("div","font-size:11px;color:"+C.goal+";margin-bottom:10px","※きろくがほぞんできません（このかいだけ遊べます）"));
