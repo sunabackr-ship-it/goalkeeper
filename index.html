@@ -433,8 +433,8 @@ var Rec={
     return { v:1,
       prefs:{ level:"normal", sound:true },
       vs:{ play:0, win:0, lose:0 },
-      kick:{ play:0, best:0, streakBest:0 },
-      keep:{ play:0, best:0, streakBest:0 },
+      kick:{ play:0, best:0, streakBest:0, perfect:{easy:0,normal:0,hard:0} },
+      keep:{ play:0, best:0, streakBest:0, perfect:{easy:0,normal:0,hard:0} },
       streak:{ best:0 },
       medals:{ bronze:0, silver:0, gold:0, platinum:0 },
       goalMedals:{ bronze:0, silver:0, gold:0, platinum:0 },
@@ -460,9 +460,11 @@ var Rec={
     t.hardStreak=t.hardStreak||0; t.hardBest=t.hardBest||0;
     t.renpa2=t.renpa2||0; t.renpa3=t.renpa3||0;
     t.deepest=(typeof t.deepest==="number")?t.deepest:-1;
-    // キッカー／キーパーの連続チャレンジ記録の欠けを補う
+    // キッカー／キーパーの連続チャレンジ記録・パーフェクト回数の欠けを補う
     if(this.data.kick && this.data.kick.streakBest==null) this.data.kick.streakBest=0;
     if(this.data.keep && this.data.keep.streakBest==null) this.data.keep.streakBest=0;
+    if(this.data.kick && !this.data.kick.perfect) this.data.kick.perfect={easy:0,normal:0,hard:0};
+    if(this.data.keep && !this.data.keep.perfect) this.data.keep.perfect={easy:0,normal:0,hard:0};
     if(!this.data.goalMedals||typeof this.data.goalMedals!=="object") this.data.goalMedals={ bronze:0, silver:0, gold:0, platinum:0 };
     return this.data;
   },
@@ -497,11 +499,13 @@ var Rec={
     } else if(st.mode==="kick"){
       d.kick.play++;
       if(st.endless){ if(st.youScore>(d.kick.streakBest||0)) d.kick.streakBest=st.youScore; }
-      else if(st.youScore>d.kick.best) d.kick.best=st.youScore;
+      else { if(st.youScore>d.kick.best) d.kick.best=st.youScore;
+             if(st.youScore>=ROUNDS && d.kick.perfect[levelPref]!=null) d.kick.perfect[levelPref]++; }   // 5本ぜんぶゴール
     } else if(st.mode==="keep"){
       d.keep.play++;
       if(st.endless){ if(st.saves>(d.keep.streakBest||0)) d.keep.streakBest=st.saves; }
-      else if(st.saves>d.keep.best) d.keep.best=st.saves;
+      else { if(st.saves>d.keep.best) d.keep.best=st.saves;
+             if(st.saves>=ROUNDS && d.keep.perfect[levelPref]!=null) d.keep.perfect[levelPref]++; }   // 5本ぜんぶセーブ
     }
     // 連続セーブメダル（守る場面がある対戦・キーパー）
     if(st.mode==="vs" || st.mode==="keep"){
@@ -916,12 +920,10 @@ function renderRecords(){
   // メダル（連続セーブ／キーパー）
   var mc=card("🧤 メダル（連続セーブ／キーパー）");
   mc.appendChild(medalGrid(d.medals, ["3連続","5連続","8連続","10連続"]));
-  mc.appendChild(row("さいこう連続セーブ", d.streak.best+"本", C.save));
   app.appendChild(mc);
   // メダル（連続ゴール／キッカー・連続チャレンジ）
   var gc=card("⚽ メダル（連続ゴール／キッカー）");
   gc.appendChild(medalGrid(d.goalMedals||{}, ["5連続","10連続","15連続","20連続"]));
-  gc.appendChild(row("さいこう連続ゴール", (d.kick.streakBest||0)+"本", C.ball));
   app.appendChild(gc);
   // 対戦
   var vc=card("対戦モード");
@@ -929,10 +931,15 @@ function renderRecords(){
   vc.appendChild(row("勝ち", d.vs.win+"回", C.save));
   vc.appendChild(row("まけ", d.vs.lose+"回", C.goal));
   app.appendChild(vc);
-  // キッカー／キーパー
-  var kc=card("キッカー／キーパーモード");
-  kc.appendChild(row("キッカー さいこう得点（5本）", d.kick.best+" / "+ROUNDS+"（"+d.kick.play+"回）", C.ball));
-  kc.appendChild(row("キーパー さいこうセーブ（5本）", d.keep.best+" / "+ROUNDS+"（"+d.keep.play+"回）", C.save));
+  // 最高記録（キッカー／キーパーモードのベスト）
+  var kc=card("🏆 さいこう記録");
+  var pk=d.kick.perfect||{}, ks=d.keep.perfect||{};
+  kc.appendChild(h("div","font-size:11px;color:"+C.sub+";margin-bottom:2px","パーフェクト（5本ぜんぶ）　イージー / ノーマル / ハード"));
+  kc.appendChild(row("⚽ キッカー 全部ゴール", (pk.easy||0)+" / "+(pk.normal||0)+" / "+(pk.hard||0)+" 回", C.ball));
+  kc.appendChild(row("🧤 キーパー 全部セーブ", (ks.easy||0)+" / "+(ks.normal||0)+" / "+(ks.hard||0)+" 回", C.save));
+  kc.appendChild(h("div","height:6px"));
+  kc.appendChild(row("🔥 連続ゴール さいこう", (d.kick.streakBest||0)+" 連続", C.ball));
+  kc.appendChild(row("🔥 連続セーブ さいこう", (d.streak.best||0)+" 連続", C.save));
   app.appendChild(kc);
   // トロフィー（トーナメント実装後に中身が入る）
   var tc=card("トロフィー（トーナメント優勝）");
