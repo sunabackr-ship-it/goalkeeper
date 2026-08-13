@@ -661,29 +661,34 @@ function tuPitch(color, withGK){
 }
 // --- 1本目：蹴ってみる（GKなし。端は枠を外しやすい） ---
 function tuKick(){
-  clearTimers(); app.innerHTML=""; ui={}; TU.step=1;
+  clearTimers(); app.innerHTML=""; ui={}; TU.step=1; TU.busy=false;
   tuHead(1,"まず蹴ってみよう","キッカー");
-  app.appendChild(tuBox("ゴールは12マス。すきなマスをタップすると、そこへ蹴る。\n端や上をねらうほど決まりやすいが、枠を外しやすい。\n中央は外しにくいが、GKに止められやすい。"));
+  app.appendChild(tuBox("ゴールは12マス。すきなマスをタップすると、そこへ蹴る。\nコースを決めたら、下にパワーメーターが出る。\n印がうごくので、みどりの帯でタップして止めよう（まん中の金いろが会心！）。\n帯を外して止めると、力がよわくなって枠を外しやすい。"));
+  app.appendChild(tuBox("本番では、帯の広さと印の速さが選手やコースでかわる。\n正確性がたかい選手ほど、みどりの帯が広い（止めやすい）。\nキック力がたかい選手や、むずかしいコース（すみ・上）ほど、印が速い（むずかしい）。","#ffd23f"));
   tuPitch("#8a8f98", false);
   var st=h("div","min-height:76px;margin-top:10px"); ui.status=st; app.appendChild(st);
   st.appendChild(h("p","text-align:center;color:"+C.ball+";font-weight:800;font-size:16px;margin-top:14px","→ どこかのマスをタップ！"));
   ui.cells.forEach(function(c){ c.style.cursor="pointer"; });
-  var kicker={name:"れんしゅう",フェイント力:50,キック力:60,正確性:55};
+  var kicker={name:"れんしゅう",フェイント力:50,キック力:55,正確性:60};
   ui.onCell=function(z){
     if(TU.busy) return; TU.busy=true; ui.onCell=null;
     ui.cells[z].style.border="2px solid #4bc0e8";
-    if(missWide(kicker,z)){
-      flyBallWide(z,function(){ ui.ballInner.style.animation="none"; TU.busy=false;
-        // 狙った位置によって理由を変える（中央でも外れることがある）
-        var p=cr(z), side=(p.c===0||p.c===3), top=(p.r===0);
-        var why = side ? (top?"上のすみは いちばん外しやすい。":"端はリスクもある。")
-                       : (top?"上をねらうと、ふかしやすい。":"中央でも、正確性がひくいと外すことはある。");
-        tuResult("枠外…", why+"正確性がたかい選手ほど外しにくい。",C.sub,tuKick,"もう一度"); });
-    } else {
-      flyBallTo(z,FLIGHT_MS,function(){ ui.ballInner.style.animation="none";
-        ui.cells[z].style.background="rgba(255,210,63,0.30)"; goalBurst(z,"#4bc0e8"); crowds(true); TU.busy=false;
-        tuResult("ゴール！","いまはGKがいないので入る。つぎは止める番。",C.ball,tuSave,"つぎへ ›"); });
-    }
+    var s=ui.status; s.innerHTML="";
+    s.appendChild(h("p","text-align:center;color:"+C.sub+";font-size:12px;margin:0 0 4px","みどりの帯でタップして止めよう！"));
+    // チュートリアルは難易度に関係なくやさしい固定メーター
+    buildMeter(s, 0.30, 0.60, "#4bc0e8", function(q,label,lcol){
+      s.innerHTML="";
+      s.appendChild(h("div","text-align:center;font-weight:900;font-size:18px;color:"+lcol+";margin:6px 0","⚽ "+label));
+      if(timingWide(q,z,kicker)){
+        flyBallWide(z,function(){ ui.ballInner.style.animation="none"; TU.busy=false;
+          tuResult("枠外…","力んで外した…みどりの帯で止めると入りやすいよ。",C.sub,tuKick,"もう一度"); });
+      } else {
+        flyBallTo(z,FLIGHT_MS,function(){ ui.ballInner.style.animation="none";
+          ui.cells[z].style.background="rgba(255,210,63,0.30)"; goalBurst(z,"#4bc0e8"); crowds(true); TU.busy=false;
+          var g=q>=0.9?"会心！ ずどんと決まった！":(q>=0.65?"ナイスキック！":"きわどく入った！");
+          tuResult("ゴール！",g+"　いまはGKがいないので入る。つぎは止める番。",C.ball,tuSave,"つぎへ ›"); });
+      }
+    });
   };
 }
 function tuResult(big,sub,col,next,label){
@@ -919,14 +924,33 @@ function renderRecords(){
   tc.appendChild(pv);
   app.appendChild(tc);
 
-  var del=navBtn("きろくを ぜんぶ消す");
-  del.style.color=C.goal; del.style.borderColor="rgba(255,90,95,0.4)";
-  del.addEventListener("click", function(){
-    if(!confirm("きろくを ぜんぶ消します。もとにもどせません。いいですか？")) return;
-    Rec.data=Rec.blank(); Rec.data.prefs.level=levelPref; Rec.data.prefs.sound=soundPref;
-    Rec.save(); renderRecords();
-  });
-  var dw=h("div","text-align:center;margin-top:6px"); dw.appendChild(del); app.appendChild(dw);
+  // 下：もどる（主役のボタン）
+  var bw=h("div","max-width:320px;margin:16px auto 0");
+  bw.appendChild(bigButton("‹ もどる（モード選択へ）", "#4bc0e8", renderModeSelect));
+  app.appendChild(bw);
+
+  // さらに下に離して「ぜんぶ消す」。あやまって押しても、2段階の確認で守る。
+  var dz=h("div","max-width:320px;margin:26px auto 0;padding-top:14px;border-top:1px dashed rgba(255,255,255,0.14);text-align:center");
+  function showDelBtn(){
+    dz.innerHTML="";
+    var del=navBtn("きろくを ぜんぶ消す"); del.style.color=C.goal; del.style.borderColor="rgba(255,90,95,0.4)";
+    del.addEventListener("click", showConfirm);
+    dz.appendChild(del);
+  }
+  function showConfirm(){
+    dz.innerHTML="";
+    dz.appendChild(h("div","font-size:14px;font-weight:800;color:"+C.goal+";margin-bottom:2px","本当に ぜんぶ消しますか？"));
+    dz.appendChild(h("div","font-size:11px;color:"+C.sub+";margin-bottom:10px","メダル・トロフィー・成績が すべて消えます。もとにもどせません。"));
+    var row=h("div","display:flex;gap:10px;max-width:300px;margin:0 auto");
+    var no=h("button","flex:1;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.06);color:"+C.ink+";font-size:15px;font-weight:800;cursor:pointer;touch-action:manipulation","やめる");
+    no.addEventListener("click", showDelBtn);
+    var yes=h("button","flex:1;padding:12px;border-radius:12px;border:none;background:"+C.goal+";color:#fff;font-size:15px;font-weight:800;cursor:pointer;touch-action:manipulation","はい、消す");
+    yes.addEventListener("click", function(){ Rec.data=Rec.blank(); Rec.data.prefs.level=levelPref; Rec.data.prefs.sound=soundPref; Rec.save(); renderRecords(); });
+    row.appendChild(no); row.appendChild(yes);
+    dz.appendChild(row);
+  }
+  showDelBtn();
+  app.appendChild(dz);
 }
 
 /* ---------- チーム選択 ---------- */
@@ -1074,8 +1098,13 @@ function renderPickKickers(cfg){
       grid.appendChild(card);
     });
     app.appendChild(grid);
+    app.appendChild(h("div","height:92px"));   // 画面下に固定するボタンのぶんの余白
     var ok=chosen.length===5;
-    var wrap=h("div","margin-top:12px"); wrap.appendChild(bigButton("決定（"+chosen.length+"/5）", ok?"#4bc0e8":"rgba(255,255,255,0.15)", function(){ if(ok) cfg.onDone(chosen.slice()); })); app.appendChild(wrap);
+    // 画面下に固定（スクロールしなくても、5人えらんだ瞬間に押せる）
+    var foot=h("div","position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;justify-content:center;padding:10px 16px 16px;background:linear-gradient(rgba(9,26,17,0),rgba(9,26,17,0.94) 40%);pointer-events:none");
+    var inner=h("div","width:100%;max-width:394px;pointer-events:auto");
+    inner.appendChild(bigButton(ok?"これで決定！（5/5）":"あと "+(5-chosen.length)+" 人（"+chosen.length+"/5）", ok?"#4bc0e8":"rgba(255,255,255,0.15)", function(){ if(ok) cfg.onDone(chosen.slice()); }));
+    foot.appendChild(inner); app.appendChild(foot);
   }
   draw();
 }
@@ -1368,7 +1397,8 @@ function renderAttack(){
 }
 function attackStatusReady(you){
   var s=ui.status; s.innerHTML="";
-  s.appendChild(h("p","text-align:center;color:"+C.sub+";font-size:13px;margin:0 0 6px;line-height:1.6","狙うコースをタップ！　端は決まりやすいが正確性が低いと枠を外す。内側は安全だが止められやすい。"));
+  s.appendChild(h("p","text-align:center;color:"+C.sub+";font-size:13px;margin:0 0 4px;line-height:1.6","狙うコースをタップ！　端は決まりやすいが正確性が低いと枠を外す。内側は安全だが止められやすい。"));
+  s.appendChild(h("p","text-align:center;color:"+C.ball+";font-size:12px;margin:0 0 6px;font-weight:700","コースを決めたら、パワーメーターをジャストで止めて会心シュート！"));
   var mb=h("div","max-width:320px;margin:0 auto");
   mb.appendChild(kickerBars(you));
   s.appendChild(mb);
@@ -1376,19 +1406,89 @@ function attackStatusReady(you){
 function shootAt(z){
   if(S.shot!=null) return;
   S.shot=z; ui.onCell=null;
-  var opp=S.oppTeam.gk, you=myKicker();
+  var you=myKicker();
   ui.cells[z].style.border="2px solid "+S.youTeam.color;
+  showPowerMeter(z, you);
+}
+/* ジャスト帯の広さ（バー幅にたいする片側割合）。正確性が高い／中央コースほど広い。 */
+function shotBand(z, you){
+  var acc=(you.正確性!=null?you.正確性:60), ef=edgeFactor(z);
+  var w=(0.15+(acc/100)*0.22)*(1-ef*0.35);
+  w*=(LV().key==="hard"?0.85:(LV().key==="easy"?1.3:1));
+  return Math.max(0.11, Math.min(0.44, w));
+}
+/* 印の往復スピード（毎秒の往復数めやす）。キック力が高い／端コース／ハードほど速い。 */
+function shotSpeed(z, you){
+  var ef=edgeFactor(z);
+  var cyc=0.38+(you.キック力/100)*0.34+ef*0.30;
+  cyc*=(LV().key==="hard"?1.2:(LV().key==="easy"?0.75:1));
+  return cyc;
+}
+/* パワーメーター（みんなのゴルフ式のジャストミート）。
+   コースを決めたあと、印が左右に往復。タップで止めた位置で威力と精度が決まる。 */
+/* メーターのバー＋印を作って往復させる汎用部品。タップで止めると onLock(q,label,lcol) を呼ぶ。
+   w＝ジャスト帯の片側幅（0..0.5）、cyc＝往復スピード。チュートリアルと本番で共用。 */
+function buildMeter(container, w, cyc, color, onLock){
+  var bar=h("div","position:relative;width:100%;max-width:320px;height:26px;margin:6px auto;border-radius:13px;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.20);overflow:hidden;cursor:pointer;touch-action:manipulation");
+  bar.appendChild(h("div","position:absolute;top:0;height:100%;background:rgba(53,224,122,0.45);left:"+((0.5-w)*100)+"%;width:"+(w*2*100)+"%"));
+  bar.appendChild(h("div","position:absolute;top:0;height:100%;background:rgba(255,210,63,0.80);left:"+((0.5-w*0.4)*100)+"%;width:"+(w*0.8*100)+"%"));
+  bar.appendChild(h("div","position:absolute;top:0;height:100%;width:2px;background:#fff;left:calc(50% - 1px)"));
+  var marker=h("div","position:absolute;top:-2px;height:30px;width:4px;background:"+C.ball+";border-radius:2px;left:0;box-shadow:0 0 6px "+C.ball);
+  bar.appendChild(marker);
+  container.appendChild(bar);
+  var bw=h("div","max-width:320px;margin:6px auto 0"); bw.appendChild(bigButton("キック！（タップで止める）", color, doLock)); container.appendChild(bw);
+  var startT=null, locked=false, mpos=0.5;
+  function frame(t){
+    if(locked) return;
+    if(startT==null) startT=t;
+    var phase=((t-startT)/1000)*cyc;
+    mpos=Math.abs(((phase%1)*2)-1);
+    marker.style.left="calc("+(mpos*100)+"% - 2px)";
+    raf=requestAnimationFrame(frame);
+  }
+  bar.addEventListener("click", doLock);
+  raf=requestAnimationFrame(frame);
+  function doLock(){
+    if(locked) return; locked=true; cancelAnimationFrame(raf);
+    var dc=Math.abs(mpos-0.5), q;
+    if(dc<=w) q=1-(dc/w)*0.25;   // 帯の中はナイス(0.75)〜会心(1.0)。金の芯(±0.4w)でq>=0.9＝会心
+    else { var over=(dc-w)/Math.max(0.001,(0.5-w)); q=0.45*(1-Math.min(1,over)); }
+    var label=q>=0.9?"ジャストミート！":(q>=0.65?"ナイスキック！":"ミスヒット…");
+    var lcol=q>=0.9?C.ball:(q>=0.65?C.save:C.goal);
+    marker.style.background=lcol;
+    onLock(q, label, lcol);
+  }
+}
+function showPowerMeter(z, you){
+  var s=ui.status; s.innerHTML="";
+  s.appendChild(h("p","text-align:center;color:"+C.sub+";font-size:12px;margin:0 0 6px;line-height:1.5","タイミングよく止めてジャストミート！　まん中の白線がねらい目。"));
+  buildMeter(s, shotBand(z,you), shotSpeed(z,you), S.youTeam.color, function(q,label,lcol){ resolveShot(z,q,label,lcol); });
+}
+/* タイミングによる枠外（ミスヒット）判定。会心はほぼ枠内、ミスヒットは大きく外すことも。 */
+function timingWide(q, z, you){
+  var base=edgeFactor(z)*(1-((you.正確性!=null?you.正確性:60)/100))*0.70;
+  if(q>=0.9) return Math.random()<base*0.15;
+  if(q>=0.65) return Math.random()<base*0.6;
+  var t=(0.65-q)/0.65;                                  // 0..1 ＝ ミスの大きさ
+  var chance=base*(1+2.0*t)+0.10*t+(t>0.6?0.12:0);
+  return Math.random()<Math.min(0.85, chance);
+}
+/* メーターの結果 q（1＝会心）で威力と精度を反映して決着。GKの読みはそのまま残す（歯ごたえ重視）。 */
+function resolveShot(z, q, label, lcol){
+  var opp=S.oppTeam.gk, you=myKicker();
   ui.status.innerHTML="";
-  ui.status.appendChild(h("p","text-align:center;color:"+C.ball+";font-weight:800;font-size:17px;margin-top:20px","シュート！"));
+  ui.status.appendChild(h("div","text-align:center;font-weight:900;font-size:20px;color:"+lcol+";margin:8px 0","⚽ "+label));
   var guess=keeperGuess(z, opp, you); S.guess=guess; diveKeeper(guess);
-  if(missWide(you, z)){
-    S.ao={ goal:false, wide:true }; crowds(false);
+  if(timingWide(q, z, you)){
+    S.ao={ goal:false, wide:true, q:q }; crowds(false);
     flyBallWide(z, function(){ ui.ballInner.style.animation="none"; S.youMarks.push(false); attackResult(); });
     return;
   }
+  var effPower=Math.max(8, Math.min(125, you.キック力+(q-0.7)*40));   // 会心＝威力＋ / ミスヒット＝威力−
+  var ek={}; for(var k in you) ek[k]=you[k]; ek.キック力=effPower;
   flyBallTo(z, FLIGHT_MS, function(){
-    var res=resolveSave(z, guess, opp, you, [z], true);
-    var goal=!res.saved; S.ao={ goal:goal, res:res };
+    var res=resolveSave(z, guess, opp, ek, [z], true);
+    var goal=!res.saved; S.ao={ goal:goal, res:res, q:q };
     ui.ballInner.style.animation="none";
     if(goal){ ui.cells[z].style.background="rgba(255,210,63,0.30)"; S.youScore++; goalBurst(z, S.youTeam.color); crowds(true); }
     else { ui.cells[z].style.background="rgba(53,224,122,0.28)"; if(res.hold) catchEffect(z); else deflectBall(z); crowds(false); }
@@ -1398,12 +1498,15 @@ function shootAt(z){
 }
 // ゴール時の一言は「GKが実際にどこへ跳んだか」から決める（固定文だと嘘になる）
 function attackReason(){
-  if(S.guess==null) return "相手GKは動けなかった！";
-  var d=cellDist(S.shot, S.guess);
-  if(d<0.5)  return pick(["読まれていた！　だが力でねじ込んだ！","コースは読まれた！　それでも押し込んだ！"]);
-  if(d<1.5)  return pick(["相手GKの指先が、わずかに届かない！","懸命に伸ばした手をかすめた！"]);
-  if(d<2.5)  return pick(["相手GKは別のコースを読んでいた！","狙いを外させた！"]);
-  return pick(["完全に逆を突いた！","相手GKは真逆へ跳んだ！"]);
+  var pre=(S.ao&&S.ao.q!=null&&S.ao.q>=0.9)?"会心の一撃！ ":"";
+  var base;
+  if(S.guess==null) base="相手GKは動けなかった！";
+  else { var d=cellDist(S.shot, S.guess);
+    base = d<0.5 ? pick(["読まれていた！　だが力でねじ込んだ！","コースは読まれた！　それでも押し込んだ！"])
+         : d<1.5 ? pick(["相手GKの指先が、わずかに届かない！","懸命に伸ばした手をかすめた！"])
+         : d<2.5 ? pick(["相手GKは別のコースを読んでいた！","狙いを外させた！"])
+         :         pick(["完全に逆を突いた！","相手GKは真逆へ跳んだ！"]); }
+  return pre+base;
 }
 function attackResult(){
   var s=ui.status; s.innerHTML=""; var goal=S.ao.goal, wide=S.ao.wide;
@@ -1829,6 +1932,7 @@ function tourLadder(){
   return row;
 }
 function tourMatchIntro(){
+  if(!TOUR){ renderModeSelect(); return; }   // 中断などでトーナメントが消えていたら安全に抜ける
   clearTimers(); app.innerHTML="";
   var R=TOUR_ROUNDS[TOUR.round];
   var bar=h("div","display:flex;justify-content:space-between;align-items:center;margin-bottom:6px");
