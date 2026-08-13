@@ -1078,14 +1078,16 @@ function endlessSetOpp(){
   if(S.mode==="kick"){ var gk=pickByStar(KEEPERS, stars); S.oppTeam={ name:"れんぞくの相手", color:gk.color, gk:gk, kickers:[] }; }
   else { var k=pickByStar(KICKERS, stars); S.oppTeam={ name:"れんぞくの相手", color:k.color, gk:ghostGK(), kickers:[k] }; }
 }
-// 自分の側だけ決めたら、連続チャレンジ開始
-function startEndless(){
+// 自分の側（キッカー1人 or GK）から連続チャレンジ用のチームを組み、1本目の相手も用意
+function endlessResetTeam(){
   S.round=1; S.youScore=0; S.oppScore=0; S.saves=0; S.streak=0; S.bestStreak=0; S.sudden=false; S.youMarks=[]; S.oppMarks=[];
   if(S.mode==="kick") S.youTeam={ name:"あなた", color:(S.pYouKickers[0]?S.pYouKickers[0].color:"#ffd23f"), gk:ghostGK(), kickers:S.pYouKickers };
   else S.youTeam={ name:"あなた", color:S.pYouGK.color, gk:S.pYouGK, kickers:[] };
   endlessSetOpp();
-  renderMatchIntro();
 }
+function startEndless(){ endlessResetTeam(); renderMatchIntro(); }
+// 連続モードの「もう一度」：同じ選手のまま、選択画面をとばして即再開
+function endlessRetry(){ clearTimers(); endlessResetTeam(); beginRound(1); }
 /* ---------- 選択フロー（モード別）---------- */
 function beginSelection(){
   S.youTeam=null; S.oppTeam=null; S.round=1; S.youScore=0; S.oppScore=0; S.saves=0; S.streak=0; S.bestStreak=0; S.sudden=false; S.youMarks=[]; S.oppMarks=[];
@@ -1904,7 +1906,13 @@ function renderResult(){
   }
   if(!Rec.ok) wrap.appendChild(h("div","font-size:11px;color:"+C.goal+";margin-bottom:10px","※きろくがほぞんできません（このかいだけ遊べます）"));
   if(TOUR){ tourAfterMatch(wrap, S.youScore>S.oppScore); return; }   // トーナメント中は勝ち上がり／敗退の画面に差し替える
-  wrap.appendChild(bigButton("もう一度（モード選択へ）", S.youTeam?S.youTeam.color:"#4bc0e8", function(){ resetGame(); renderModeSelect(); }));
+  if(S.mode!=="vs" && S.endless){
+    // 連続モード：同じ選手のまま即もう一度（選択画面をとばす）
+    wrap.appendChild(bigButton("🔁 もう一度チャレンジ（同じ選手）", S.youTeam.color, endlessRetry));
+    var mb2=navBtn("モード選択へ"); mb2.style.marginTop="10px"; mb2.addEventListener("click", function(){ resetGame(); renderModeSelect(); }); wrap.appendChild(mb2);
+  } else {
+    wrap.appendChild(bigButton("もう一度（モード選択へ）", S.youTeam?S.youTeam.color:"#4bc0e8", function(){ resetGame(); renderModeSelect(); }));
+  }
   var rb=navBtn("きろくしつを見る"); rb.style.marginTop="10px";
   rb.addEventListener("click", renderRecords); wrap.appendChild(rb);
   app.appendChild(wrap);
