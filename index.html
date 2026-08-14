@@ -438,6 +438,7 @@ var Rec={
       streak:{ best:0 },
       medals:{ bronze:0, silver:0, gold:0, platinum:0 },
       goalMedals:{ bronze:0, silver:0, gold:0, platinum:0 },
+      platinums:[],   // プラチナを取った記録 [{kind:"goal"/"save", char, level}]
       trophies:{ wins:{easy:0,normal:0,hard:0}, hardStreak:0, hardBest:0, renpa2:0, renpa3:0, deepest:-1 },
       tour:null      // トーナメント中断データ（再開用）
     };
@@ -466,6 +467,7 @@ var Rec={
     if(this.data.kick && !this.data.kick.perfect) this.data.kick.perfect={easy:0,normal:0,hard:0};
     if(this.data.keep && !this.data.keep.perfect) this.data.keep.perfect={easy:0,normal:0,hard:0};
     if(!this.data.goalMedals||typeof this.data.goalMedals!=="object") this.data.goalMedals={ bronze:0, silver:0, gold:0, platinum:0 };
+    if(!Array.isArray(this.data.platinums)) this.data.platinums=[];
     return this.data;
   },
   save:function(){
@@ -512,14 +514,21 @@ var Rec={
       if(st.bestStreak>d.streak.best) d.streak.best=st.bestStreak;
       medal=this.medalOf(st.bestStreak);
       if(medal) d.medals[medal.key]=(d.medals[medal.key]||0)+1;
+      if(medal && medal.key==="platinum") this.addPlatinum("save", (st.youTeam&&st.youTeam.gk?st.youTeam.gk.name:"?"));
     }
     // 連続ゴールメダル（キッカーの連続チャレンジ）
     if(st.mode==="kick" && st.endless){
       var gm=this.goalMedalOf(st.youScore);
       if(gm){ d.goalMedals[gm.key]=(d.goalMedals[gm.key]||0)+1; medal=gm; }
+      if(gm && gm.key==="platinum") this.addPlatinum("goal", (st.youTeam&&st.youTeam.kickers&&st.youTeam.kickers[0]?st.youTeam.kickers[0].name:"?"));
     }
     this.save();
     return medal;
+  },
+  // プラチナ獲得を記録（どのキャラ・どのモード・どの難易度か）。多すぎたら古い順に切る。
+  addPlatinum:function(kind, char){
+    this.data.platinums.push({ kind:kind, char:char, level:levelPref });
+    if(this.data.platinums.length>30) this.data.platinums=this.data.platinums.slice(-30);
   }
 };
 
@@ -925,6 +934,20 @@ function renderRecords(){
   var gc=card("⚽ メダル（連続ゴール／キッカー）");
   gc.appendChild(medalGrid(d.goalMedals||{}, ["5連続","10連続","15連続","20連続"]));
   app.appendChild(gc);
+  // プラチナ記録（どのキャラ・どのモード・どの難易度で取ったか）
+  var plats=d.platinums||[];
+  if(plats.length){
+    var plc=card("💎 プラチナ記録");
+    plats.slice().reverse().forEach(function(p){
+      var icon=(p.kind==="goal")?"⚽":"🧤", mode=(p.kind==="goal")?"連続ゴール":"連続セーブ";
+      var lv=LEVELS[p.level]?LEVELS[p.level].label:"";
+      var r=h("div","display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-top:1px solid rgba(255,255,255,0.06)");
+      r.appendChild(h("span","font-size:13px;font-weight:700;color:"+C.ink, icon+" "+p.char));
+      r.appendChild(h("span","font-size:12px;color:"+((p.kind==="goal")?C.ball:C.save), mode+"・"+lv));
+      plc.appendChild(r);
+    });
+    app.appendChild(plc);
+  }
   // 対戦
   var vc=card("対戦モード");
   vc.appendChild(row("しあい数", d.vs.play+"回"));
@@ -1069,11 +1092,11 @@ function endlessTierStars(streak){
     if(streak<8)  return [3,4];
     return [4,5];
   }
-  // キッカー：プラチナ20。20本めまで少しずつ、上位はGK6人（★4-5）で変化をつける
-  if(streak<5)   return [1,2];
-  if(streak<10)  return [2,3];
-  if(streak<15)  return [3,4];
-  return [4,5];
+  // キッカー：プラチナ20。8本目あたりから実在選手（★4-5）が出る。上位はGK6人で変化をつける
+  if(streak<3)   return [1,2];   // 0-2
+  if(streak<6)   return [2,3];   // 3-5
+  if(streak<8)   return [3,4];   // 6-7  実在★4がまじり始める
+  return [4,5];                  // 8+   実在選手（★4-5）
 }
 function pickByStar(pool, stars){
   var f=pool.filter(function(m){ return stars.indexOf(m.star)>=0; });
