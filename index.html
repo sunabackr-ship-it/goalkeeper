@@ -967,7 +967,7 @@ function rosterCard(m, kind){
     if(m.age!=null) prof.push("年齢："+m.age+"歳");
     card.appendChild(h("div","font-size:11px;color:"+C.ink+";margin-top:7px;line-height:1.6", prof.join("　/　")));
   }
-  if(m.note) card.appendChild(h("div","font-size:11px;color:"+C.sub+";margin-top:5px;line-height:1.5","とくちょう："+m.note));
+  if(m.note && m.name!=="K直人") card.appendChild(h("div","font-size:11px;color:"+C.sub+";margin-top:5px;line-height:1.5","とくちょう："+m.note));
   if(m.career && m.career.length){
     card.appendChild(h("div","font-size:11px;font-weight:800;color:"+m.color+";margin-top:7px","経歴"));
     var ul=h("div","margin-top:2px");
