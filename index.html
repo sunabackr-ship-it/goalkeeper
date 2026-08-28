@@ -105,8 +105,8 @@ var REAL_GKS = [
       "プロ契約→下位リーグの様々なクラブにレンタル移籍",
       "エヴァートンFCへ移籍→そこから移籍なし",
       "クラブの最優秀選手に複数回選出"] },
-  { name:"K直人", color:"#ffcc33", star:5, note:"あなた（K直人）。数値は自由に調整しよう！", メンタル:85, 反応:85, フィジカル:90,
-    club:"すなばFC", nat:"日本代表（K直人）", career:["自由研究でこのゲームをつくった","数値は自由に調整しよう！"] },
+  { name:"K直人", color:"#ffcc33", star:5, note:"あなた（K直人）。数値は自由に調整しよう！", メンタル:50, 反応:50, フィジカル:50,
+    career:["自由研究でこのゲームをつくった","数値は自由に調整しよう！"] },
 ];
 var REAL_KICKERS = [
   { name:"メッシ", color:"#79b7e0", star:5, note:"アルゼンチン代表。史上最高クラスの技術。", フェイント力:95, キック力:68, 正確性:92 },
@@ -129,7 +129,7 @@ var REAL_KICKERS = [
   { name:"ヴィニシウス", color:"#f2d23f", star:5, note:"ブラジル代表。スピードとトリック。", フェイント力:85, キック力:74, 正確性:74 },
   { name:"オヤルサバル", color:"#d94a4a", star:4, note:"スペイン代表。PKに強い。", フェイント力:62, キック力:78, 正確性:88 },
   { name:"ククレジャ", color:"#d94a4a", star:4, note:"スペイン代表。ユーロ制覇の左サイドバック。強烈な左足。", フェイント力:62, キック力:84, 正確性:78 },
-  { name:"K直人", color:"#ffcc33", star:5, note:"あなた（K直人）。数値は自由に調整しよう！", フェイント力:85, キック力:85, 正確性:85 },
+  { name:"K直人", color:"#ffcc33", star:5, note:"あなた（K直人）。数値は自由に調整しよう！", フェイント力:50, キック力:50, 正確性:50 },
 ];
 /* 架空の一般選手を自動生成してプールに混ぜる
    tier "low" … ★1〜2。数値20〜54（調査シートの目安で「平均的」）
@@ -482,6 +482,7 @@ var Rec={
       medals:{ bronze:0, silver:0, gold:0, platinum:0 },
       goalMedals:{ bronze:0, silver:0, gold:0, platinum:0 },
       platinums:[],   // プラチナを取った記録 [{kind:"goal"/"save", char, level}]
+      knaoto:{ gk:{メンタル:50,反応:50,フィジカル:50}, kicker:{フェイント力:50,キック力:50,正確性:50} },   // K直人の調整値
       trophies:{ wins:{easy:0,normal:0,hard:0}, hardStreak:0, hardBest:0, renpa2:0, renpa3:0, deepest:-1 },
       tour:null      // トーナメント中断データ（再開用）
     };
@@ -511,6 +512,8 @@ var Rec={
     if(this.data.keep && !this.data.keep.perfect) this.data.keep.perfect={easy:0,normal:0,hard:0};
     if(!this.data.goalMedals||typeof this.data.goalMedals!=="object") this.data.goalMedals={ bronze:0, silver:0, gold:0, platinum:0 };
     if(!Array.isArray(this.data.platinums)) this.data.platinums=[];
+    var kn=this.data.knaoto; if(!kn||typeof kn!=="object") kn=this.data.knaoto={};
+    kn.gk=kn.gk||{メンタル:50,反応:50,フィジカル:50}; kn.kicker=kn.kicker||{フェイント力:50,キック力:50,正確性:50};
     return this.data;
   },
   save:function(){
@@ -978,12 +981,58 @@ function renderRoster(){
   app.appendChild(navBar(renderModeSelect));
   app.appendChild(h("div","text-align:center;font-size:20px;font-weight:900;color:#4bc0e8;margin:2px 0 2px","⭐ 名選手ずかん"));
   app.appendChild(h("div","text-align:center;font-size:11px;color:"+C.sub+";margin-bottom:10px;line-height:1.5","調べて数値をつけた実在の名選手たち。\nイラストは本人ではなく、イメージとして描いたものです。"));
-  app.appendChild(h("div","font-size:14px;font-weight:900;color:"+C.ball+";margin:6px 0 6px","⚽ キッカー（"+REAL_KICKERS.length+"人）"));
-  var kg=h("div","display:grid;gap:8px"); REAL_KICKERS.forEach(function(k){ kg.appendChild(rosterCard(k,"kicker")); }); app.appendChild(kg);
-  app.appendChild(h("div","font-size:14px;font-weight:900;color:"+C.save+";margin:16px 0 2px","🧤 ゴールキーパー（"+REAL_GKS.length+"人）"));
+  // K直人の数値ちょうせいボタン
+  var kb=h("div","max-width:340px;margin:0 auto 12px");
+  var kbtn=h("button","width:100%;text-align:center;background:rgba(255,204,51,0.12);border:1px solid #ffcc33;color:#ffcc33;font-size:14px;font-weight:800;padding:11px;border-radius:12px;cursor:pointer;touch-action:manipulation","⚙️ K直人の数値をちょうせいする");
+  kbtn.addEventListener("click", renderKnaoto); kb.appendChild(kbtn); app.appendChild(kb);
+  // 🧤 ゴールキーパーを上に
+  app.appendChild(h("div","font-size:14px;font-weight:900;color:"+C.save+";margin:6px 0 2px","🧤 ゴールキーパー（"+REAL_GKS.length+"人）"));
   app.appendChild(h("div","font-size:10px;color:"+C.sub+";margin-bottom:6px","プロフィール・経歴は 自由研究から転記"));
   var gg=h("div","display:grid;gap:8px"); REAL_GKS.forEach(function(g){ gg.appendChild(rosterCard(g,"gk")); }); app.appendChild(gg);
+  // ⚽ キッカーを下に
+  app.appendChild(h("div","font-size:14px;font-weight:900;color:"+C.ball+";margin:16px 0 6px","⚽ キッカー（"+REAL_KICKERS.length+"人）"));
+  var kg=h("div","display:grid;gap:8px"); REAL_KICKERS.forEach(function(k){ kg.appendChild(rosterCard(k,"kicker")); }); app.appendChild(kg);
   var back=h("div","max-width:320px;margin:18px auto 0"); back.appendChild(bigButton("‹ もどる（モード選択へ）","#4bc0e8",renderModeSelect)); app.appendChild(back);
+}
+/* ---------- K直人の数値ちょうせい（自動保存） ---------- */
+var KNAOTO_DEFAULT={ gk:{メンタル:50,反応:50,フィジカル:50}, kicker:{フェイント力:50,キック力:50,正確性:50} };
+function applyKnaoto(){
+  var kn=Rec.data&&Rec.data.knaoto; if(!kn) return;
+  var gk=REAL_GKS.find(function(g){return g.name==="K直人";}), fw=REAL_KICKERS.find(function(k){return k.name==="K直人";});
+  if(gk){ gk.メンタル=kn.gk.メンタル; gk.反応=kn.gk.反応; gk.フィジカル=kn.gk.フィジカル; }
+  if(fw){ fw.フェイント力=kn.kicker.フェイント力; fw.キック力=kn.kicker.キック力; fw.正確性=kn.kicker.正確性; }
+}
+function knaotoSlider(label, group, key, color){
+  var kn=Rec.data.knaoto, row=h("div","margin:9px 0");
+  var top=h("div","display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px");
+  top.appendChild(h("span","font-size:13px;color:"+C.ink,label));
+  var val=h("span","font-size:17px;font-weight:900;color:"+color, ""+kn[group][key]); top.appendChild(val); row.appendChild(top);
+  var sl=h("input","width:100%;accent-color:"+color); sl.type="range"; sl.min="10"; sl.max="99"; sl.step="1"; sl.value=kn[group][key];
+  sl.addEventListener("input", function(){ kn[group][key]=parseInt(sl.value,10)||10; val.textContent=""+kn[group][key]; applyKnaoto(); Rec.save(); });
+  row.appendChild(sl); return row;
+}
+function renderKnaoto(){
+  clearTimers(); app.innerHTML=""; titleBg(false);
+  app.appendChild(navBar(renderRoster));
+  app.appendChild(h("div","text-align:center;font-size:20px;font-weight:900;color:#ffcc33;margin:2px 0 2px","⚙️ K直人の数値ちょうせい"));
+  app.appendChild(h("div","text-align:center;font-size:11px;color:"+C.sub+";margin-bottom:12px","うごかすとすぐ反映＆じどうで保存されるよ"));
+  if(!Rec.ok) app.appendChild(h("div","text-align:center;font-size:11px;color:"+C.goal+";margin-bottom:8px","※この環境では保存できません（このかいだけ）"));
+  function box(title,col){ var c=h("div","background:rgba(255,255,255,0.04);border:1px solid "+col+"66;border-radius:14px;padding:12px 14px;margin-bottom:12px");
+    c.appendChild(h("div","font-size:13px;font-weight:800;color:"+col+";margin-bottom:4px",title)); return c; }
+  var gc=box("🧤 キーパー能力", C.save);
+  gc.appendChild(knaotoSlider("メンタル","gk","メンタル",C.save));
+  gc.appendChild(knaotoSlider("反応","gk","反応",C.save));
+  gc.appendChild(knaotoSlider("フィジカル","gk","フィジカル",C.save));
+  app.appendChild(gc);
+  var kc=box("⚽ キッカー能力", C.ball);
+  kc.appendChild(knaotoSlider("フェイント力","kicker","フェイント力",C.ball));
+  kc.appendChild(knaotoSlider("キック力","kicker","キック力",C.ball));
+  kc.appendChild(knaotoSlider("正確性","kicker","正確性",C.ball));
+  app.appendChild(kc);
+  var rb=navBtn("さいしょの数値にもどす"); rb.style.color=C.sub;
+  rb.addEventListener("click", function(){ Rec.data.knaoto=JSON.parse(JSON.stringify(KNAOTO_DEFAULT)); applyKnaoto(); Rec.save(); renderKnaoto(); });
+  var rw=h("div","text-align:center;margin:2px 0 12px"); rw.appendChild(rb); app.appendChild(rw);
+  var back=h("div","max-width:320px;margin:0 auto"); back.appendChild(bigButton("‹ もどる（ずかんへ）","#4bc0e8",renderRoster)); app.appendChild(back);
 }
 
 /* ---------- きろくしつ ---------- */
@@ -2282,6 +2331,7 @@ function tourTrophyOpts(res){
 }
 
 Rec.load();
+applyKnaoto();   // 保存されたK直人の数値を反映
 levelPref = (LEVELS[Rec.data.prefs.level] ? Rec.data.prefs.level : "normal");
 soundPref = (Rec.data.prefs.sound !== false);
 renderTitle();
