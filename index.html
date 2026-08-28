@@ -981,7 +981,7 @@ function renderRoster(){
   app.appendChild(h("div","font-size:14px;font-weight:900;color:"+C.ball+";margin:6px 0 6px","⚽ キッカー（"+REAL_KICKERS.length+"人）"));
   var kg=h("div","display:grid;gap:8px"); REAL_KICKERS.forEach(function(k){ kg.appendChild(rosterCard(k,"kicker")); }); app.appendChild(kg);
   app.appendChild(h("div","font-size:14px;font-weight:900;color:"+C.save+";margin:16px 0 2px","🧤 ゴールキーパー（"+REAL_GKS.length+"人）"));
-  app.appendChild(h("div","font-size:10px;color:"+C.sub+";margin-bottom:6px","プロフィール・経歴は 直人の自由研究より"));
+  app.appendChild(h("div","font-size:10px;color:"+C.sub+";margin-bottom:6px","プロフィール・経歴は 自由研究から転記"));
   var gg=h("div","display:grid;gap:8px"); REAL_GKS.forEach(function(g){ gg.appendChild(rosterCard(g,"gk")); }); app.appendChild(gg);
   var back=h("div","max-width:320px;margin:18px auto 0"); back.appendChild(bigButton("‹ もどる（モード選択へ）","#4bc0e8",renderModeSelect)); app.appendChild(back);
 }
