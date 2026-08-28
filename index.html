@@ -974,6 +974,10 @@ function rosterCard(m, kind){
     m.career.forEach(function(c){ ul.appendChild(h("div","font-size:11px;color:"+C.sub+";line-height:1.5","・"+c)); });
     card.appendChild(ul);
   }
+  if(m.name==="K直人"){
+    var ab=h("button","width:100%;text-align:center;background:rgba(255,204,51,0.14);border:1px solid #ffcc33;color:#ffcc33;font-size:13px;font-weight:800;padding:9px;border-radius:10px;cursor:pointer;touch-action:manipulation;margin-top:8px","⚙️ 数値をちょうせいする");
+    ab.addEventListener("click", renderKnaoto); card.appendChild(ab);
+  }
   return card;
 }
 function renderRoster(){
