@@ -649,10 +649,11 @@ function renderTitle(){
   wrap.appendChild(start);
   app.appendChild(wrap);
   // 非営利・イラストは本人ではない旨の明記
-  var note=h("div","margin:20px auto 0;max-width:340px;text-align:center;color:#dfe9e1;font-size:10px;line-height:1.7;background:rgba(4,18,10,0.45);border-radius:10px;padding:8px 10px");
+  var note=h("div","margin:20px auto 0;max-width:340px;text-align:center;color:#dfe9e1;font-size:10px;line-height:1.7;background:rgba(4,18,10,0.45);border-radius:10px;padding:8px 10px;text-wrap:balance");
   note.appendChild(h("div",null,"小学校の自由研究として作った、非営利のゲームです。"));
   note.appendChild(h("div",null,"選手のイラストは本人ではなく、イメージとして描いたものです。"));
-  note.appendChild(h("div",null,"「架空」と表示される選手は、実在しない自動生成のキャラクターです。"));
+  note.appendChild(h("div",null,"「架空」と表示される選手は、"));
+  note.appendChild(h("div",null,"実在しない自動生成のキャラクターです。"));
   note.appendChild(h("div",null,"能力値は制作者が独自につけたもので、公式の評価ではありません。"));
   app.appendChild(note);
 }
